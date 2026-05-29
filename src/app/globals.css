@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 225 14% 10%;
+    --foreground: 210 20% 98%;
+    --card: 225 14% 12%;
+    --card-foreground: 210 20% 98%;
+    --popover: 225 14% 10%;
+    --popover-foreground: 210 20% 98%;
+    --primary: 220 52% 68%;
+    --primary-foreground: 225 14% 10%;
+    --secondary: 225 14% 18%;
+    --secondary-foreground: 210 20% 98%;
+    --muted: 225 14% 18%;
+    --muted-foreground: 215 16% 70%;
+    --accent: 190 60% 63%;
+    --accent-foreground: 225 14% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 20% 98%;
+    --border: 225 14% 22%;
+    --input: 225 14% 22%;
+    --ring: 220 52% 68%;
+    --radius: 0.75rem;
+    --sidebar-background: 225 14% 8%;
+    --sidebar-foreground: 215 16% 80%;
+    --sidebar-primary: 220 52% 68%;
+    --sidebar-primary-foreground: 225 14% 10%;
+    --sidebar-accent: 225 14% 15%;
+    --sidebar-accent-foreground: 210 20% 98%;
+    --sidebar-border: 225 14% 18%;
+    --sidebar-ring: 220 52% 68%;
+    --chart-1: 220 52% 68%;
+    --chart-2: 190 60% 63%;
+    --chart-3: 200 70% 50%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-headline;
+  }
+}
+
+.glass {
+  @apply bg-card/60 backdrop-blur-md border border-white/10;
+}
+
+.subtle-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.subtle-scroll::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+.subtle-scroll::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/20 rounded-full;
+}
