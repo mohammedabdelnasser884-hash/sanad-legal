@@ -1,0 +1,22 @@
+{
+  "placeholderImages": [
+    {
+      "id": "hero-bg",
+      "description": "Premium legal office with modern aesthetic",
+      "imageUrl": "https://picsum.photos/seed/legal1/1200/800",
+      "imageHint": "modern office"
+    },
+    {
+      "id": "dashboard-preview",
+      "description": "Elegant SaaS dashboard mockup",
+      "imageUrl": "https://picsum.photos/seed/dash1/1000/600",
+      "imageHint": "dashboard ui"
+    },
+    {
+      "id": "ai-assistant",
+      "description": "Abstract AI visualization representing legal intelligence",
+      "imageUrl": "https://picsum.photos/seed/ai1/800/600",
+      "imageHint": "artificial intelligence"
+    }
+  ]
+}
