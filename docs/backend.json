@@ -1,0 +1,42 @@
+
+{
+  "entities": {
+    "LegalCase": {
+      "title": "قضية قانونية",
+      "description": "بيانات القضية القانونية في النظام السعودي",
+      "type": "object",
+      "properties": {
+        "caseNumber": { "type": "string", "description": "رقم القضية في ناجز" },
+        "title": { "type": "string", "description": "عنوان القضية" },
+        "clientName": { "type": "string", "description": "اسم الموكل" },
+        "status": { "type": "string", "enum": ["نشطة", "مغلقة", "قيد المراجعة", "عاجل"] },
+        "court": { "type": "string", "description": "المحكمة المختصة" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["caseNumber", "title", "clientName", "status"]
+    },
+    "UserProfile": {
+      "title": "ملف المحامي",
+      "description": "بيانات المحامي المستخدم للنظام",
+      "type": "object",
+      "properties": {
+        "fullName": { "type": "string" },
+        "licenseNumber": { "type": "string", "description": "رقم ترخيص المحاماة" },
+        "firmName": { "type": "string" }
+      }
+    }
+  },
+  "auth": {
+    "providers": ["password", "google"]
+  },
+  "firestore": {
+    "/cases/{caseId}": {
+      "schema": "LegalCase",
+      "description": "مجموعة القضايا القانونية"
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "بيانات المستخدمين"
+    }
+  }
+}
