@@ -1,9 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +14,26 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Toaster } from "@/components/ui/toaster";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -26,6 +49,8 @@ import {
   Phone,
   FileText,
   X,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -50,7 +75,7 @@ interface CalendarEvent {
 
 // ─── Mock Data ───────────────────────────────────────────────────────────────
 
-const mockEvents: CalendarEvent[] = [
+const initialEvents: CalendarEvent[] = [
   {
     id: "EVT-001",
     title: "جلسة قضية بن لادن ضد وزارة المالية",
@@ -219,6 +244,10 @@ function isSameDay(a: string, b: Date) {
     da.getDate() === b.getDate();
 }
 
+function generateId() {
+  return "EVT-" + Math.floor(Math.random() * 9000 + 1000).toString();
+}
+
 // ─── Event Card ───────────────────────────────────────────────────────────────
 
 function EventCard({ event, onClick }: { event: CalendarEvent; onClick: () => void }) {
@@ -299,7 +328,7 @@ function MiniCalendar({
     selectedDay.getDate() === day;
 
   return (
-    <Card className="border-none bg-card/50 border border-white/5">
+    <Card className="border border-primary/15 shadow-sm shadow-primary/5 bg-card/50 hover:border-primary/30 transition-all duration-200">
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-4">
           <button
@@ -353,23 +382,241 @@ function MiniCalendar({
   );
 }
 
+// ─── Add/Edit Event Form ──────────────────────────────────────────────────────
+
+interface EventFormData {
+  title: string;
+  type: EventType;
+  date: string;
+  time: string;
+  duration: string;
+  location: string;
+  client: string;
+  notes: string;
+}
+
+const emptyForm: EventFormData = {
+  title: "",
+  type: "موعد",
+  date: "",
+  time: "",
+  duration: "",
+  location: "",
+  client: "",
+  notes: "",
+};
+
+function EventForm({
+  value,
+  onChange,
+}: {
+  value: EventFormData;
+  onChange: (v: EventFormData) => void;
+}) {
+  const set = (k: keyof EventFormData, v: string) => onChange({ ...value, [k]: v });
+
+  return (
+    <div className="space-y-4 text-right" dir="rtl">
+      <div className="space-y-1.5">
+        <Label className="text-sm font-bold">العنوان *</Label>
+        <Input
+          value={value.title}
+          onChange={(e) => set("title", e.target.value)}
+          placeholder="عنوان الموعد"
+          className="bg-secondary/40 border-white/10 focus:border-primary/50 rounded-xl"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label className="text-sm font-bold">النوع *</Label>
+          <Select value={value.type} onValueChange={(v) => set("type", v)}>
+            <SelectTrigger className="bg-secondary/40 border-white/10 rounded-xl">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="جلسة">جلسة</SelectItem>
+              <SelectItem value="موعد">موعد</SelectItem>
+              <SelectItem value="مهمة">مهمة</SelectItem>
+              <SelectItem value="اجتماع">اجتماع</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-sm font-bold">التاريخ *</Label>
+          <Input
+            type="date"
+            value={value.date}
+            onChange={(e) => set("date", e.target.value)}
+            className="bg-secondary/40 border-white/10 focus:border-primary/50 rounded-xl"
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label className="text-sm font-bold">الوقت *</Label>
+          <Input
+            type="time"
+            value={value.time}
+            onChange={(e) => set("time", e.target.value)}
+            className="bg-secondary/40 border-white/10 focus:border-primary/50 rounded-xl"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-sm font-bold">المدة</Label>
+          <Input
+            value={value.duration}
+            onChange={(e) => set("duration", e.target.value)}
+            placeholder="مثل: ساعة"
+            className="bg-secondary/40 border-white/10 focus:border-primary/50 rounded-xl"
+          />
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-sm font-bold">الموقع</Label>
+        <Input
+          value={value.location}
+          onChange={(e) => set("location", e.target.value)}
+          placeholder="موقع الموعد"
+          className="bg-secondary/40 border-white/10 focus:border-primary/50 rounded-xl"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-sm font-bold">الموكل</Label>
+        <Input
+          value={value.client}
+          onChange={(e) => set("client", e.target.value)}
+          placeholder="اسم الموكل"
+          className="bg-secondary/40 border-white/10 focus:border-primary/50 rounded-xl"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-sm font-bold">ملاحظات</Label>
+        <Textarea
+          value={value.notes}
+          onChange={(e) => set("notes", e.target.value)}
+          placeholder="ملاحظات إضافية"
+          className="bg-secondary/40 border-white/10 focus:border-primary/50 rounded-xl resize-none"
+          rows={3}
+        />
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CalendarPage() {
+  const { toast } = useToast();
   const today = new Date();
+  const [isLoading, setIsLoading] = useState(true);
+  const [events, setEvents] = useState<CalendarEvent[]>(initialEvents);
+
+  useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 800);
+    return () => clearTimeout(t);
+  }, []);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [filterType, setFilterType] = useState<EventType | "الكل">("الكل");
   const [filterStatus, setFilterStatus] = useState<EventStatus | "الكل">("الكل");
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
-  const filteredEvents = mockEvents.filter((e) => {
+  // Add dialog
+  const [addOpen, setAddOpen] = useState(false);
+  const [addForm, setAddForm] = useState<EventFormData>(emptyForm);
+
+  // Edit mode inside detail dialog
+  const [editMode, setEditMode] = useState(false);
+  const [editForm, setEditForm] = useState<EventFormData>(emptyForm);
+
+  // Delete confirm
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
+
+  const handleAdd = () => {
+    if (!addForm.title.trim() || !addForm.date || !addForm.time) {
+      toast({ title: "خطأ", description: "يرجى تعبئة الحقول المطلوبة (العنوان، التاريخ، الوقت)", variant: "destructive" });
+      return;
+    }
+    const newEvent: CalendarEvent = {
+      id: generateId(),
+      title: addForm.title,
+      type: addForm.type,
+      status: "قادم",
+      date: addForm.date,
+      time: addForm.time,
+      duration: addForm.duration || "—",
+      location: addForm.location || "—",
+      client: addForm.client || "—",
+      notes: addForm.notes,
+    };
+    setEvents((prev) => [...prev, newEvent]);
+    setAddOpen(false);
+    setAddForm(emptyForm);
+    toast({ title: "تم إضافة الموعد", description: newEvent.title });
+  };
+
+  const handleOpenEdit = () => {
+    if (!selectedEvent) return;
+    setEditForm({
+      title: selectedEvent.title,
+      type: selectedEvent.type,
+      date: selectedEvent.date,
+      time: selectedEvent.time,
+      duration: selectedEvent.duration,
+      location: selectedEvent.location,
+      client: selectedEvent.client,
+      notes: selectedEvent.notes,
+    });
+    setEditMode(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (!selectedEvent) return;
+    if (!editForm.title.trim() || !editForm.date || !editForm.time) {
+      toast({ title: "خطأ", description: "يرجى تعبئة الحقول المطلوبة", variant: "destructive" });
+      return;
+    }
+    const updated: CalendarEvent = {
+      ...selectedEvent,
+      title: editForm.title,
+      type: editForm.type,
+      date: editForm.date,
+      time: editForm.time,
+      duration: editForm.duration,
+      location: editForm.location,
+      client: editForm.client,
+      notes: editForm.notes,
+    };
+    setEvents((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+    setSelectedEvent(updated);
+    setEditMode(false);
+    toast({ title: "تم تعديل الموعد", description: updated.title });
+  };
+
+  const handleDelete = () => {
+    if (!selectedEvent) return;
+    setEvents((prev) => prev.filter((e) => e.id !== selectedEvent.id));
+    setDeleteOpen(false);
+    setSelectedEvent(null);
+    setEditMode(false);
+    toast({ title: "تم حذف الموعد", description: "تم حذف الموعد بنجاح" });
+  };
+
+  const handleCloseDetail = () => {
+    setSelectedEvent(null);
+    setEditMode(false);
+  };
+
+  // ── Filter ────────────────────────────────────────────────────────────────
+
+  const filteredEvents = events.filter((e) => {
     const matchType = filterType === "الكل" || e.type === filterType;
     const matchStatus = filterStatus === "الكل" || e.status === filterStatus;
     const matchDay = !selectedDay || isSameDay(e.date, selectedDay);
     return matchType && matchStatus && matchDay;
   });
 
-  // Group by date
   const grouped = filteredEvents.reduce<Record<string, CalendarEvent[]>>((acc, e) => {
     if (!acc[e.date]) acc[e.date] = [];
     acc[e.date].push(e);
@@ -378,9 +625,9 @@ export default function CalendarPage() {
 
   const sortedDates = Object.keys(grouped).sort();
 
-  const upcomingCount = mockEvents.filter((e) => e.status === "قادم").length;
-  const todayCount = mockEvents.filter((e) => isSameDay(e.date, today)).length;
-  const sessionsCount = mockEvents.filter((e) => e.type === "جلسة" && e.status === "قادم").length;
+  const upcomingCount = events.filter((e) => e.status === "قادم").length;
+  const todayCount = events.filter((e) => isSameDay(e.date, today)).length;
+  const sessionsCount = events.filter((e) => e.type === "جلسة" && e.status === "قادم").length;
 
   const stats = [
     { label: "جلسات قادمة", value: sessionsCount, icon: Gavel, color: "text-primary", bg: "bg-primary/10" },
@@ -388,45 +635,64 @@ export default function CalendarPage() {
     { label: "إجمالي النشاطات", value: upcomingCount, icon: Clock, color: "text-amber-400", bg: "bg-amber-400/10" },
   ];
 
-  const DetailIcon = selectedEvent ? TYPE_CONFIG[selectedEvent.type].icon : null;
-
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
+      <Toaster />
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-headline font-bold">المواعيد والجلسات</h2>
+          <h2 className="text-4xl font-headline font-black">المواعيد والجلسات</h2>
           <p className="text-muted-foreground">جدولة وإدارة جلسات المحاكم والمواعيد القانونية</p>
         </div>
-        <Button className="rounded-xl px-6 shadow-lg shadow-primary/20 font-bold w-fit">
+        <Button
+          className="rounded-xl px-6 shadow-lg shadow-primary/30 font-bold transition-all duration-200 hover:shadow-primary/40 hover:shadow-xl w-fit"
+          onClick={() => { setAddForm(emptyForm); setAddOpen(true); }}
+        >
           <Plus className="h-4 w-4 ml-2" />
           إضافة موعد
         </Button>
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 grid-cols-3">
-        {stats.map((s, i) => (
-          <Card key={i} className="border-none bg-card/50 border border-white/5">
-            <CardContent className="p-5 flex items-center gap-4">
-              <div className={`p-3 rounded-xl ${s.bg}`}>
-                <s.icon className={`h-5 w-5 ${s.color}`} />
-              </div>
-              <div>
-                <p className="text-2xl font-headline font-bold">{s.value}</p>
-                <p className="text-xs text-muted-foreground">{s.label}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {isLoading ? (
+        <div className="grid gap-4 grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <Card key={i} className="border border-primary/15 bg-card/50">
+              <CardContent className="p-6 flex items-center gap-4">
+                <Skeleton className="h-11 w-11 rounded-xl" />
+                <div className="space-y-2 flex-1">
+                  <Skeleton className="h-6 w-8 rounded" />
+                  <Skeleton className="h-3 w-20 rounded" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="grid gap-4 grid-cols-3">
+          {stats.map((s, i) => (
+            <Card key={i} className="border border-primary/15 shadow-sm shadow-primary/5 bg-card/50 hover:border-primary/30 transition-all duration-200">
+              <CardContent className="p-6 flex items-center gap-4">
+                <div className={`p-3 rounded-xl ${s.bg}`}>
+                  <s.icon className={`h-5 w-5 ${s.color}`} />
+                </div>
+                <div>
+                  <p className="text-2xl font-headline font-bold">{s.value}</p>
+                  <p className="text-xs text-muted-foreground">{s.label}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
         {/* Sidebar */}
         <div className="space-y-4">
           <MiniCalendar
             currentDate={today}
-            events={mockEvents}
+            events={events}
             onSelectDay={(d) => setSelectedDay((prev) =>
               prev?.toDateString() === d.toDateString() ? null : d
             )}
@@ -434,7 +700,7 @@ export default function CalendarPage() {
           />
 
           {/* Filters */}
-          <Card className="border-none bg-card/50 border border-white/5">
+          <Card className="border border-primary/15 shadow-sm shadow-primary/5 bg-card/50 hover:border-primary/30 transition-all duration-200">
             <CardHeader className="p-4 pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
                 <Filter className="h-4 w-4 text-muted-foreground" />
@@ -493,11 +759,47 @@ export default function CalendarPage() {
 
         {/* Events List */}
         <div className="space-y-6">
-          {sortedDates.length === 0 ? (
-            <Card className="border-none bg-card/50 border border-white/5">
+          {isLoading ? (
+            <div className="space-y-4">
+              {[0, 1, 2].map((i) => (
+                <Card key={i} className="border border-primary/15 bg-card/50">
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center gap-3 mb-3">
+                      <Skeleton className="h-8 w-8 rounded-xl" />
+                      <div className="space-y-1.5">
+                        <Skeleton className="h-4 w-32 rounded" />
+                        <Skeleton className="h-3 w-16 rounded" />
+                      </div>
+                    </div>
+                    {[0, 1].map((j) => (
+                      <div key={j} className="flex items-center gap-3 p-3 rounded-xl border border-white/5">
+                        <Skeleton className="h-9 w-9 rounded-xl shrink-0" />
+                        <div className="flex-1 space-y-1.5">
+                          <Skeleton className="h-4 w-48 rounded" />
+                          <Skeleton className="h-3 w-32 rounded" />
+                        </div>
+                        <Skeleton className="h-5 w-14 rounded-full" />
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : sortedDates.length === 0 ? (
+            <Card className="border border-primary/15 shadow-sm shadow-primary/5 bg-card/50 hover:border-primary/30 transition-all duration-200">
               <CardContent className="p-16 text-center text-muted-foreground">
-                <CalendarIcon className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                <p className="font-bold">لا توجد نشاطات مطابقة</p>
+                <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                  <CalendarIcon className="h-8 w-8 text-primary/40" />
+                </div>
+                <p className="font-bold text-base text-foreground/70 mb-1">لا توجد نشاطات مطابقة</p>
+                <p className="text-sm text-muted-foreground mb-4">جرّب تغيير معايير الفلتر أو التاريخ</p>
+                <Button
+                  onClick={() => setAddOpen(true)}
+                  className="rounded-xl gap-2 shadow-lg shadow-primary/20"
+                >
+                  <Plus className="h-4 w-4" />
+                  إضافة نشاط جديد
+                </Button>
               </CardContent>
             </Card>
           ) : (
@@ -516,7 +818,7 @@ export default function CalendarPage() {
                   {grouped[date]
                     .sort((a, b) => a.time.localeCompare(b.time))
                     .map((ev) => (
-                      <EventCard key={ev.id} event={ev} onClick={() => setSelectedEvent(ev)} />
+                      <EventCard key={ev.id} event={ev} onClick={() => { setSelectedEvent(ev); setEditMode(false); }} />
                     ))}
                 </div>
               </div>
@@ -525,8 +827,26 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Detail Dialog */}
-      <Dialog open={!!selectedEvent} onOpenChange={() => setSelectedEvent(null)}>
+      {/* ── Add Event Dialog ───────────────────────────────────────────────── */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="max-w-lg bg-card border-white/10 text-right" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold">إضافة موعد جديد</DialogTitle>
+          </DialogHeader>
+          <EventForm value={addForm} onChange={setAddForm} />
+          <DialogFooter className="gap-2 flex-row-reverse sm:flex-row-reverse mt-2">
+            <Button variant="outline" className="rounded-xl border-white/10 flex-1" onClick={() => setAddOpen(false)}>
+              إلغاء
+            </Button>
+            <Button className="rounded-xl flex-1 font-bold" onClick={handleAdd}>
+              حفظ الموعد
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Detail / Edit Dialog ───────────────────────────────────────────── */}
+      <Dialog open={!!selectedEvent} onOpenChange={handleCloseDetail}>
         <DialogContent className="max-w-lg bg-card border-white/10 text-right" dir="rtl">
           {selectedEvent && (() => {
             const typeCfg = TYPE_CONFIG[selectedEvent.type];
@@ -537,71 +857,114 @@ export default function CalendarPage() {
               <>
                 <DialogHeader>
                   <div className="flex items-center gap-3 mb-2">
-                    <div className={`p-2.5 rounded-xl ${typeCfg.bg}`}>
+                    <div className={`p-3 rounded-xl ${typeCfg.bg}`}>
                       <TIcon className={`h-5 w-5 ${typeCfg.color}`} />
                     </div>
                     <div>
                       <DialogTitle className="text-base font-bold leading-tight">
-                        {selectedEvent.title}
+                        {editMode ? "تعديل الموعد" : selectedEvent.title}
                       </DialogTitle>
-                      <Badge variant="outline" className={`text-xs mt-1 ${statusCfg.bg} ${statusCfg.color} border`}>
-                        <SIcon className="h-3 w-3 ml-1" />
-                        {statusCfg.label}
-                      </Badge>
+                      {!editMode && (
+                        <Badge variant="outline" className={`text-xs mt-1 ${statusCfg.bg} ${statusCfg.color} border`}>
+                          <SIcon className="h-3 w-3 ml-1" />
+                          {statusCfg.label}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </DialogHeader>
 
-                <div className="space-y-3 text-sm">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-secondary/40 rounded-xl p-3">
-                      <p className="text-xs text-muted-foreground mb-1">التاريخ</p>
-                      <p className="font-bold text-xs">{formatDateAr(selectedEvent.date)}</p>
+                {editMode ? (
+                  <>
+                    <EventForm value={editForm} onChange={setEditForm} />
+                    <DialogFooter className="gap-2 flex-row-reverse sm:flex-row-reverse mt-2">
+                      <Button variant="outline" className="rounded-xl border-white/10 flex-1" onClick={() => setEditMode(false)}>
+                        إلغاء
+                      </Button>
+                      <Button className="rounded-xl flex-1 font-bold" onClick={handleSaveEdit}>
+                        حفظ التعديلات
+                      </Button>
+                    </DialogFooter>
+                  </>
+                ) : (
+                  <>
+                    <div className="space-y-3 text-sm">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-secondary/40 rounded-xl p-3">
+                          <p className="text-xs text-muted-foreground mb-1">التاريخ</p>
+                          <p className="font-bold text-xs">{formatDateAr(selectedEvent.date)}</p>
+                        </div>
+                        <div className="bg-secondary/40 rounded-xl p-3">
+                          <p className="text-xs text-muted-foreground mb-1">الوقت والمدة</p>
+                          <p className="font-bold text-xs">{selectedEvent.time} · {selectedEvent.duration}</p>
+                        </div>
+                      </div>
+                      <div className="bg-secondary/40 rounded-xl p-3">
+                        <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><MapPin className="h-3 w-3" /> الموقع</p>
+                        <p className="font-bold text-xs">{selectedEvent.location}</p>
+                      </div>
+                      <div className="bg-secondary/40 rounded-xl p-3">
+                        <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><User className="h-3 w-3" /> الموكل</p>
+                        <p className="font-bold text-xs">{selectedEvent.client}</p>
+                      </div>
+                      {selectedEvent.judge && (
+                        <div className="bg-secondary/40 rounded-xl p-3">
+                          <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><Gavel className="h-3 w-3" /> القاضي</p>
+                          <p className="font-bold text-xs">{selectedEvent.judge}</p>
+                        </div>
+                      )}
+                      {selectedEvent.caseId && (
+                        <div className="bg-primary/10 border border-primary/20 rounded-xl p-3">
+                          <p className="text-xs text-muted-foreground mb-1">رقم القضية</p>
+                          <p className="font-bold text-xs text-primary">{selectedEvent.caseId}</p>
+                        </div>
+                      )}
+                      <div className="bg-secondary/40 rounded-xl p-3">
+                        <p className="text-xs text-muted-foreground mb-1">ملاحظات</p>
+                        <p className="text-xs leading-relaxed">{selectedEvent.notes}</p>
+                      </div>
                     </div>
-                    <div className="bg-secondary/40 rounded-xl p-3">
-                      <p className="text-xs text-muted-foreground mb-1">الوقت والمدة</p>
-                      <p className="font-bold text-xs">{selectedEvent.time} · {selectedEvent.duration}</p>
-                    </div>
-                  </div>
-                  <div className="bg-secondary/40 rounded-xl p-3">
-                    <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><MapPin className="h-3 w-3" /> الموقع</p>
-                    <p className="font-bold text-xs">{selectedEvent.location}</p>
-                  </div>
-                  <div className="bg-secondary/40 rounded-xl p-3">
-                    <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><User className="h-3 w-3" /> الموكل</p>
-                    <p className="font-bold text-xs">{selectedEvent.client}</p>
-                  </div>
-                  {selectedEvent.judge && (
-                    <div className="bg-secondary/40 rounded-xl p-3">
-                      <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1"><Gavel className="h-3 w-3" /> القاضي</p>
-                      <p className="font-bold text-xs">{selectedEvent.judge}</p>
-                    </div>
-                  )}
-                  {selectedEvent.caseId && (
-                    <div className="bg-primary/10 border border-primary/20 rounded-xl p-3">
-                      <p className="text-xs text-muted-foreground mb-1">رقم القضية</p>
-                      <p className="font-bold text-xs text-primary">{selectedEvent.caseId}</p>
-                    </div>
-                  )}
-                  <div className="bg-secondary/40 rounded-xl p-3">
-                    <p className="text-xs text-muted-foreground mb-1">ملاحظات</p>
-                    <p className="text-xs leading-relaxed">{selectedEvent.notes}</p>
-                  </div>
-                </div>
 
-                <DialogFooter className="gap-2 flex-row-reverse sm:flex-row-reverse">
-                  <Button variant="outline" className="rounded-xl border-white/10 flex-1" onClick={() => setSelectedEvent(null)}>
-                    إغلاق
-                  </Button>
-                  <Button className="rounded-xl flex-1 font-bold">
-                    تعديل الموعد
-                  </Button>
-                </DialogFooter>
+                    <DialogFooter className="gap-2 flex-row-reverse sm:flex-row-reverse">
+                      <Button
+                        variant="outline"
+                        className="rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10 flex-1"
+                        onClick={() => setDeleteOpen(true)}
+                      >
+                        <Trash2 className="h-4 w-4 ml-2" /> حذف الموعد
+                      </Button>
+                      <Button className="rounded-xl flex-1 font-bold" onClick={handleOpenEdit}>
+                        <Pencil className="h-4 w-4 ml-2" /> تعديل الموعد
+                      </Button>
+                    </DialogFooter>
+                  </>
+                )}
               </>
             );
           })()}
         </DialogContent>
       </Dialog>
+
+      {/* ── Delete Confirm ─────────────────────────────────────────────────── */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent className="bg-card border-white/10" dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-right">تأكيد حذف الموعد</AlertDialogTitle>
+            <AlertDialogDescription className="text-right">
+              هل أنت متأكد من حذف "{selectedEvent?.title}"؟ لا يمكن التراجع عن هذا الإجراء.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row-reverse gap-2">
+            <AlertDialogCancel className="rounded-xl border-white/10">إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleDelete}
+            >
+              حذف
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
