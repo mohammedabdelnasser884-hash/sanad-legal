@@ -5,11 +5,11 @@ import { usePathname } from "next/navigation";
 import { LayoutDashboard, Gavel, Calendar, BookOpen, Sparkles } from "lucide-react";
 
 const navItems = [
-  { icon: LayoutDashboard, label: "الرئيسية", href: "/dashboard" },
-  { icon: Gavel,           label: "القضايا",  href: "/cases"     },
+  { icon: LayoutDashboard, label: "الرئيسية", href: "/dashboard"     },
+  { icon: Gavel,           label: "القضايا",  href: "/cases"         },
   { icon: Sparkles,        label: "المساعد",  href: "/ai-assistant", center: true },
-  { icon: Calendar,        label: "الجدول",   href: "/calendar"  },
-  { icon: BookOpen,        label: "المكتبة",  href: "/documents" },
+  { icon: Calendar,        label: "الجدول",   href: "/calendar"      },
+  { icon: BookOpen,        label: "المكتبة",  href: "/documents"     },
 ];
 
 export function BottomNav() {
