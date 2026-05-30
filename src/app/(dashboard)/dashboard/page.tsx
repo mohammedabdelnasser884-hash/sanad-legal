@@ -18,7 +18,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 
-/* ─── mock data ─────────────────────────────────────────── */
 const STATS = [
   {
     label: "القضايا النشطة",
@@ -85,7 +84,6 @@ const SESSIONS = [
   },
 ];
 
-/* ─── component ─────────────────────────────────────────── */
 export default function DashboardPage() {
   const { toast } = useToast();
   const [notifCount] = useState(3);
@@ -97,7 +95,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen" style={{ background: "#F5F6FA" }} dir="rtl">
 
-      {/* ══════ HEADER ══════ */}
+      {/* HEADER */}
       <div
         className="relative px-5 pt-10 pb-10"
         style={{
@@ -106,9 +104,7 @@ export default function DashboardPage() {
           borderBottomRightRadius: "32px",
         }}
       >
-        {/* Top bar */}
         <div className="flex items-center justify-between mb-6">
-          {/* Bell */}
           <div className="relative">
             <button className="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center">
               <Bell className="h-5 w-5 text-white" />
@@ -123,13 +119,11 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Greeting */}
           <div className="text-left">
             <p className="text-white/60 text-xs">أهلاً بعودتك</p>
             <p className="text-white font-bold text-base">الأستاذ / محمد</p>
           </div>
 
-          {/* Logo */}
           <div
             className="h-11 w-11 rounded-full flex items-center justify-center shadow-lg"
             style={{ background: "#C9A84C" }}
@@ -138,7 +132,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Hero text */}
         <div className="text-right">
           <p className="text-white/70 text-sm mb-1">سند ⚖️</p>
           <h1 className="text-white text-2xl font-bold leading-snug">
@@ -150,10 +143,10 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ══════ CONTENT ══════ */}
+      {/* CONTENT */}
       <div className="px-4 pb-24 mt-5 space-y-6">
 
-        {/* ── Stats Grid 2×2 ── */}
+        {/* Stats Grid 2x2 */}
         <div className="grid grid-cols-2 gap-3">
           {STATS.map((stat, i) => (
             <div
@@ -161,7 +154,6 @@ export default function DashboardPage() {
               className="bg-white rounded-2xl p-4 shadow-sm"
               style={{ border: "1px solid #EFEFEF" }}
             >
-              {/* Change badge */}
               <div className="flex items-center justify-between mb-3">
                 <span
                   className="text-[11px] font-bold flex items-center gap-0.5"
@@ -173,7 +165,6 @@ export default function DashboardPage() {
                   }
                   {stat.change}
                 </span>
-                {/* Icon */}
                 <div
                   className="h-10 w-10 rounded-full flex items-center justify-center"
                   style={{ background: stat.iconBg }}
@@ -181,7 +172,6 @@ export default function DashboardPage() {
                   <stat.icon className="h-5 w-5" style={{ color: stat.iconColor }} />
                 </div>
               </div>
-
               <p className="text-3xl font-black" style={{ color: "#1E2B4A" }}>
                 {stat.value}
               </p>
@@ -192,7 +182,7 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {/* ── Upcoming Sessions ── */}
+        {/* Upcoming Sessions */}
         <div>
           <div className="flex items-center justify-between mb-3">
             <Link
@@ -214,7 +204,6 @@ export default function DashboardPage() {
                 className="bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm"
                 style={{ border: "1px solid #EFEFEF" }}
               >
-                {/* Date pill */}
                 <div
                   className="shrink-0 rounded-xl px-3 py-2 text-center min-w-[52px]"
                   style={{ background: "#F5F6FA" }}
@@ -222,8 +211,6 @@ export default function DashboardPage() {
                   <p className="text-[10px] font-bold" style={{ color: "#6B7280" }}>{s.date}</p>
                   <p className="text-xs font-bold" style={{ color: "#1E2B4A" }}>{s.time}</p>
                 </div>
-
-                {/* Details */}
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-sm truncate" style={{ color: "#1E2B4A" }}>
                     {s.title}
@@ -232,8 +219,6 @@ export default function DashboardPage() {
                     {s.court}
                   </p>
                 </div>
-
-                {/* Tag */}
                 <span
                   className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-full text-white"
                   style={{ background: s.tagColor }}
@@ -245,7 +230,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ── AI Assistant Cards ── */}
+        {/* AI Assistant */}
         <div>
           <div className="flex items-center justify-between mb-3">
             <Link
@@ -261,7 +246,6 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            {/* PDF Summary */}
             <button
               onClick={() => handleAI("تلخيص ملف PDF")}
               className="bg-white rounded-2xl p-4 text-right shadow-sm active:scale-95 transition-transform"
@@ -279,7 +263,6 @@ export default function DashboardPage() {
               </p>
             </button>
 
-            {/* Draft Memo */}
             <button
               onClick={() => handleAI("صياغة مذكرة قانونية")}
               className="bg-white rounded-2xl p-4 text-right shadow-sm active:scale-95 transition-transform"
