@@ -16,57 +16,53 @@
   }
 
   :root {
-    /* ── خلفية دافئة داكنة — بني/رمادي دافئ ── */
-    --background: 28 10% 8%;
-    --foreground: 38 25% 93%;
+    /* ── Light theme — Navy + Gold ── */
+    --background: 220 20% 97%;
+    --foreground: 222 47% 18%;
 
-    /* ── Cards: بني داكن دافئ ── */
-    --card: 28 10% 11%;
-    --card-foreground: 38 25% 93%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 18%;
 
-    --popover: 28 10% 9%;
-    --popover-foreground: 38 25% 93%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 18%;
 
-    /* ── Primary: ذهبي فاخر ── */
-    --primary: 43 72% 56%;
-    --primary-foreground: 28 15% 8%;
+    /* Primary: #1E2B4A نيلي غامق */
+    --primary: 222 42% 20%;
+    --primary-foreground: 0 0% 100%;
 
-    /* ── Secondary: بني دافئ متوسط ── */
-    --secondary: 28 10% 16%;
-    --secondary-foreground: 38 20% 85%;
+    /* Secondary */
+    --secondary: 220 14% 93%;
+    --secondary-foreground: 222 42% 20%;
 
-    /* ── Muted ── */
-    --muted: 28 10% 16%;
-    --muted-foreground: 35 12% 58%;
+    --muted: 220 14% 93%;
+    --muted-foreground: 220 9% 43%;
 
-    /* ── Accent: بيج/كريمي دافئ ── */
-    --accent: 38 55% 68%;
-    --accent-foreground: 28 15% 8%;
+    /* Accent: #C9A84C ذهبي */
+    --accent: 42 54% 55%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 56%;
-    --destructive-foreground: 38 25% 93%;
+    --destructive-foreground: 0 0% 100%;
 
-    /* ── Borders & Inputs ── */
-    --border: 35 12% 20%;
-    --input: 35 12% 18%;
-    --ring: 43 72% 56%;
+    --border: 220 13% 88%;
+    --input: 220 13% 88%;
+    --ring: 42 54% 55%;
     --radius: 0.75rem;
 
-    /* ── Sidebar: أغمق من الخلفية ── */
-    --sidebar-background: 28 12% 6%;
-    --sidebar-foreground: 38 18% 75%;
-    --sidebar-primary: 43 72% 56%;
-    --sidebar-primary-foreground: 28 15% 8%;
-    --sidebar-accent: 28 10% 12%;
-    --sidebar-accent-foreground: 38 25% 90%;
-    --sidebar-border: 35 10% 15%;
-    --sidebar-ring: 43 72% 56%;
+    /* Sidebar */
+    --sidebar-background: 222 42% 20%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 42 54% 55%;
+    --sidebar-primary-foreground: 222 42% 20%;
+    --sidebar-accent: 222 42% 26%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 222 42% 28%;
+    --sidebar-ring: 42 54% 55%;
 
-    /* ── Charts ── */
-    --chart-1: 43 72% 56%;
-    --chart-2: 38 55% 68%;
+    --chart-1: 42 54% 55%;
+    --chart-2: 222 42% 40%;
     --chart-3: 32 60% 48%;
-    --chart-4: 20 65% 52%;
+    --chart-4: 160 55% 45%;
     --chart-5: 10 70% 55%;
   }
 }
@@ -77,54 +73,10 @@
   }
   body {
     @apply bg-background text-foreground;
-    background-image:
-      radial-gradient(ellipse 80% 50% at 50% -10%, hsl(43 72% 56% / 0.07), transparent),
-      radial-gradient(ellipse 60% 40% at 80% 80%, hsl(38 55% 68% / 0.04), transparent);
-  }
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-headline;
-    letter-spacing: -0.02em;
-    line-height: 1.3;
   }
 }
 
-.glass {
-  @apply bg-card/60 backdrop-blur-md border border-white/8;
-}
-
-/* ── Subtle gold shimmer on cards ── */
-.gold-card {
-  background: linear-gradient(
-    135deg,
-    hsl(28 10% 13%) 0%,
-    hsl(28 10% 11%) 100%
-  );
-  border: 1px solid hsl(43 72% 56% / 0.12);
-}
-
-.subtle-scroll::-webkit-scrollbar {
-  width: 5px;
-}
-.subtle-scroll::-webkit-scrollbar-track {
-  @apply bg-transparent;
-}
-.subtle-scroll::-webkit-scrollbar-thumb {
-  background: hsl(43 72% 56% / 0.2);
-  border-radius: 99px;
-}
-.subtle-scroll::-webkit-scrollbar-thumb:hover {
-  background: hsl(43 72% 56% / 0.35);
-}
-
-@media print {
-  [data-sidebar],
-  aside,
-  nav,
-  .print\:hidden {
-    display: none !important;
-  }
-  body {
-    background: white !important;
-    color: black !important;
-  }
-}
+/* Subtle scroll */
+.subtle-scroll::-webkit-scrollbar { width: 4px; }
+.subtle-scroll::-webkit-scrollbar-track { background: transparent; }
+.subtle-scroll::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 2px; }
