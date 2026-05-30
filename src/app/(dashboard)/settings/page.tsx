@@ -29,7 +29,22 @@ import {
   Camera,
   Save,
   LogOut,
+  Plus,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 
@@ -109,7 +124,7 @@ function Field({
 
 // ─── Team Member ─────────────────────────────────────────────────────────────
 
-const teamMembers = [
+const initialTeamMembers = [
   { name: "أحمد السلطان", role: "محامي أول", email: "ahmed@sanad.law", status: "نشط", avatar: "أ.س" },
   { name: "نورة القحطاني", role: "محامية", email: "noura@sanad.law", status: "نشط", avatar: "ن.ق" },
   { name: "خالد العتيبي", role: "مساعد قانوني", email: "khalid@sanad.law", status: "نشط", avatar: "خ.ع" },
@@ -139,11 +154,51 @@ export default function SettingsPage() {
     dataEncrypt: true,
   });
 
+  // Password fields
+  const [currentPw, setCurrentPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+
+  // Team state
+  const [teamMembers, setTeamMembers] = useState(initialTeamMembers);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteForm, setInviteForm] = useState({ name: "", email: "", role: "محامي" });
+
   const handleSave = () => {
-    toast({
-      title: "تم الحفظ",
-      description: "تم حفظ التغييرات بنجاح.",
-    });
+    toast({ title: "تم الحفظ بنجاح ✓" });
+  };
+
+  const handleUpdatePassword = () => {
+    if (!currentPw.trim() || !newPw.trim() || !confirmPw.trim()) {
+      toast({ title: "خطأ", description: "يرجى تعبئة جميع حقول كلمة المرور", variant: "destructive" });
+      return;
+    }
+    if (newPw !== confirmPw) {
+      toast({ title: "خطأ", description: "كلمتا المرور غير متطابقتين", variant: "destructive" });
+      return;
+    }
+    setCurrentPw(""); setNewPw(""); setConfirmPw("");
+    toast({ title: "تم تحديث كلمة المرور بنجاح ✓" });
+  };
+
+  const handleInvite = () => {
+    if (!inviteForm.name.trim() || !inviteForm.email.trim()) {
+      toast({ title: "خطأ", description: "يرجى تعبئة الاسم والبريد الإلكتروني", variant: "destructive" });
+      return;
+    }
+    setTeamMembers((prev) => [
+      ...prev,
+      {
+        name: inviteForm.name,
+        role: inviteForm.role,
+        email: inviteForm.email,
+        status: "معلق",
+        avatar: inviteForm.name.slice(0, 2),
+      },
+    ]);
+    setInviteOpen(false);
+    setInviteForm({ name: "", email: "", role: "محامي" });
+    toast({ title: "تم إرسال الدعوة", description: `تم إرسال دعوة إلى ${inviteForm.email}` });
   };
 
   const active = sections.find((s) => s.id === activeSection)!;
@@ -154,7 +209,7 @@ export default function SettingsPage() {
 
       {/* Header */}
       <div>
-        <h2 className="text-3xl font-headline font-bold">الإعدادات</h2>
+        <h2 className="text-4xl font-headline font-black">الإعدادات</h2>
         <p className="text-muted-foreground">إدارة حساب المكتب والتفضيلات الشخصية</p>
       </div>
 
@@ -192,7 +247,7 @@ export default function SettingsPage() {
               <active.icon className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h3 className="font-headline font-bold text-lg">{active.label}</h3>
+              <h3 className="font-headline font-bold text-xl">{active.label}</h3>
               <p className="text-sm text-muted-foreground">{active.desc}</p>
             </div>
           </div>
@@ -200,7 +255,7 @@ export default function SettingsPage() {
           {/* Profile Section */}
           {activeSection === "profile" && (
             <div className="space-y-5">
-              <Card className="border-none bg-card/50 border border-white/5">
+              <Card className="border border-primary/15 shadow-sm shadow-primary/5 bg-card/50 hover:border-primary/30 transition-all duration-200">
                 <CardContent className="p-6">
                   <div className="flex items-center gap-5 mb-6">
                     <div className="relative">
@@ -250,7 +305,7 @@ export default function SettingsPage() {
           {/* Office Section */}
           {activeSection === "office" && (
             <div className="space-y-5">
-              <Card className="border-none bg-card/50 border border-white/5">
+              <Card className="border border-primary/15 shadow-sm shadow-primary/5 bg-card/50 hover:border-primary/30 transition-all duration-200">
                 <CardHeader className="p-6 pb-3">
                   <CardTitle className="text-base">بيانات المكتب</CardTitle>
                 </CardHeader>
@@ -289,7 +344,7 @@ export default function SettingsPage() {
 
           {/* Notifications Section */}
           {activeSection === "notifications" && (
-            <Card className="border-none bg-card/50 border border-white/5">
+            <Card className="border border-primary/15 shadow-sm shadow-primary/5 bg-card/50 hover:border-primary/30 transition-all duration-200">
               <CardContent className="p-6 space-y-1 divide-y divide-white/5">
                 {[
                   { key: "sessions" as const, label: "تذكير الجلسات", desc: "إشعار قبل 24 ساعة من موعد الجلسة" },
@@ -329,26 +384,56 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
             </Card>
+            <div className="flex justify-end">
+              <Button className="rounded-xl px-8 font-bold shadow-lg shadow-primary/20" onClick={handleSave}>
+                <Save className="h-4 w-4 ml-2" /> حفظ التغييرات
+              </Button>
+            </div>
           )}
-
-          {/* Privacy Section */}
           {activeSection === "privacy" && (
             <div className="space-y-5">
-              <Card className="border-none bg-card/50 border border-white/5">
+              <Card className="border border-primary/15 shadow-sm shadow-primary/5 bg-card/50 hover:border-primary/30 transition-all duration-200">
                 <CardHeader className="p-6 pb-3">
                   <CardTitle className="text-base">تغيير كلمة المرور</CardTitle>
                 </CardHeader>
                 <CardContent className="p-6 pt-2 space-y-4">
-                  <Field label="كلمة المرور الحالية" id="current-pw" type="password" />
-                  <Field label="كلمة المرور الجديدة" id="new-pw" type="password" />
-                  <Field label="تأكيد كلمة المرور" id="confirm-pw" type="password" />
-                  <Button variant="outline" className="rounded-xl border-white/10 w-full" onClick={handleSave}>
+                  <div className="space-y-2">
+                    <Label htmlFor="current-pw" className="text-sm font-bold">كلمة المرور الحالية</Label>
+                    <Input
+                      id="current-pw"
+                      type="password"
+                      value={currentPw}
+                      onChange={(e) => setCurrentPw(e.target.value)}
+                      className="bg-secondary/40 border-white/10 focus:border-primary/50 rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="new-pw" className="text-sm font-bold">كلمة المرور الجديدة</Label>
+                    <Input
+                      id="new-pw"
+                      type="password"
+                      value={newPw}
+                      onChange={(e) => setNewPw(e.target.value)}
+                      className="bg-secondary/40 border-white/10 focus:border-primary/50 rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirm-pw" className="text-sm font-bold">تأكيد كلمة المرور</Label>
+                    <Input
+                      id="confirm-pw"
+                      type="password"
+                      value={confirmPw}
+                      onChange={(e) => setConfirmPw(e.target.value)}
+                      className="bg-secondary/40 border-white/10 focus:border-primary/50 rounded-xl"
+                    />
+                  </div>
+                  <Button variant="outline" className="rounded-xl border-white/10 w-full" onClick={handleUpdatePassword}>
                     <Lock className="h-4 w-4 ml-2" /> تحديث كلمة المرور
                   </Button>
                 </CardContent>
               </Card>
 
-              <Card className="border-none bg-card/50 border border-white/5">
+              <Card className="border border-primary/15 shadow-sm shadow-primary/5 bg-card/50 hover:border-primary/30 transition-all duration-200">
                 <CardHeader className="p-6 pb-3">
                   <CardTitle className="text-base">إعدادات الأمان</CardTitle>
                 </CardHeader>
@@ -376,7 +461,7 @@ export default function SettingsPage() {
           {/* Appearance Section */}
           {activeSection === "appearance" && (
             <div className="space-y-5">
-              <Card className="border-none bg-card/50 border border-white/5">
+              <Card className="border border-primary/15 shadow-sm shadow-primary/5 bg-card/50 hover:border-primary/30 transition-all duration-200">
                 <CardHeader className="p-6 pb-3">
                   <CardTitle className="text-base">المظهر</CardTitle>
                 </CardHeader>
@@ -424,13 +509,13 @@ export default function SettingsPage() {
             <div className="space-y-5">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">{teamMembers.length} أعضاء في الفريق</p>
-                <Button size="sm" className="rounded-xl font-bold text-xs px-4">
-                  + دعوة عضو
+                <Button size="sm" className="rounded-xl font-bold text-xs px-4" onClick={() => setInviteOpen(true)}>
+                  <Plus className="h-3.5 w-3.5 ml-1" /> دعوة عضو
                 </Button>
               </div>
               <div className="space-y-3">
                 {teamMembers.map((member, i) => (
-                  <Card key={i} className="border-none bg-card/50 border border-white/5">
+                  <Card key={i} className="border border-primary/15 shadow-sm shadow-primary/5 bg-card/50 hover:border-primary/30 transition-all duration-200">
                     <CardContent className="p-4 flex items-center gap-4">
                       <Avatar className="h-10 w-10 rounded-xl border border-white/10">
                         <AvatarImage src={`https://picsum.photos/seed/${member.name}/100/100`} />
@@ -467,7 +552,7 @@ export default function SettingsPage() {
                   <div className="flex items-start justify-between">
                     <div>
                       <Badge className="mb-3 bg-primary text-primary-foreground font-bold">الخطة الاحترافية</Badge>
-                      <p className="text-3xl font-headline font-bold">499 ريال<span className="text-base font-normal text-muted-foreground">/شهر</span></p>
+                      <p className="text-4xl font-headline font-black">499 ريال<span className="text-base font-normal text-muted-foreground">/شهر</span></p>
                       <p className="text-sm text-muted-foreground mt-1">تجدد تلقائياً في 15 يونيو 2026</p>
                     </div>
                     <CheckCircle2 className="h-8 w-8 text-primary opacity-60" />
@@ -487,7 +572,7 @@ export default function SettingsPage() {
                 </CardContent>
               </Card>
 
-              <Card className="border-none bg-card/50 border border-white/5">
+              <Card className="border border-primary/15 shadow-sm shadow-primary/5 bg-card/50 hover:border-primary/30 transition-all duration-200">
                 <CardHeader className="p-6 pb-3">
                   <CardTitle className="text-base">آخر الفواتير</CardTitle>
                 </CardHeader>
@@ -518,6 +603,59 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
+
+      {/* ── Invite Dialog ───────────────────────────────────────────────────── */}
+      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+        <DialogContent className="max-w-md bg-card border-white/10 text-right" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold">دعوة عضو جديد</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-bold">الاسم *</Label>
+              <Input
+                value={inviteForm.name}
+                onChange={(e) => setInviteForm((p) => ({ ...p, name: e.target.value }))}
+                placeholder="اسم العضو"
+                className="bg-secondary/40 border-white/10 focus:border-primary/50 rounded-xl"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-bold">البريد الإلكتروني *</Label>
+              <Input
+                type="email"
+                value={inviteForm.email}
+                onChange={(e) => setInviteForm((p) => ({ ...p, email: e.target.value }))}
+                placeholder="email@example.com"
+                className="bg-secondary/40 border-white/10 focus:border-primary/50 rounded-xl"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-bold">الدور</Label>
+              <Select value={inviteForm.role} onValueChange={(v) => setInviteForm((p) => ({ ...p, role: v }))}>
+                <SelectTrigger className="bg-secondary/40 border-white/10 rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="محامي أول">محامي أول</SelectItem>
+                  <SelectItem value="محامي">محامي</SelectItem>
+                  <SelectItem value="مساعد قانوني">مساعد قانوني</SelectItem>
+                  <SelectItem value="سكرتيرة قانونية">سكرتيرة قانونية</SelectItem>
+                  <SelectItem value="متدرب">متدرب</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 flex-row-reverse sm:flex-row-reverse mt-2">
+            <Button variant="outline" className="rounded-xl border-white/10 flex-1" onClick={() => setInviteOpen(false)}>
+              إلغاء
+            </Button>
+            <Button className="rounded-xl flex-1 font-bold" onClick={handleInvite}>
+              إرسال الدعوة
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
