@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { Toaster } from "@/components/ui/toaster";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -147,7 +149,7 @@ const mockNotifications: Notification[] = [
 const CATEGORY_CONFIG: Record<NotifCategory, { icon: React.ElementType; color: string; bg: string }> = {
   القضايا:   { icon: Gavel,              color: "text-primary",    bg: "bg-primary/10" },
   المواعيد:  { icon: Calendar,           color: "text-accent",     bg: "bg-accent/10" },
-  الموكلين:  { icon: Users,              color: "text-blue-400",   bg: "bg-blue-400/10" },
+  الموكلين:  { icon: Users,              color: "text-amber-400",   bg: "bg-amber-400/10" },
   المستندات: { icon: FileText,           color: "text-purple-400", bg: "bg-purple-400/10" },
   النظام:    { icon: MessageSquareCode,  color: "text-amber-400",  bg: "bg-amber-400/10" },
   المالية:   { icon: CreditCard,         color: "text-emerald-400", bg: "bg-emerald-400/10" },
@@ -232,6 +234,7 @@ function NotifItem({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function NotificationsPage() {
+  const { toast } = useToast();
   const [notifications, setNotifications] = useState(mockNotifications);
   const [filter, setFilter] = useState<NotifCategory | "الكل">("الكل");
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
@@ -244,14 +247,17 @@ export default function NotificationsPage() {
 
   const handleDelete = (id: string) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
+    toast({ title: "تم حذف الإشعار" });
   };
 
   const handleMarkAllRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    toast({ title: "تم تحديد الكل كمقروء ✓" });
   };
 
   const handleClearAll = () => {
     setNotifications((prev) => prev.filter((n) => !n.read));
+    toast({ title: "تم حذف الإشعارات المقروءة" });
   };
 
   const filtered = notifications.filter((n) => {
@@ -277,11 +283,12 @@ export default function NotificationsPage() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
+      <Toaster />
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div>
-            <h2 className="text-3xl font-headline font-bold flex items-center gap-3">
+            <h2 className="text-4xl font-headline font-black flex items-center gap-3">
               الإشعارات
               {unreadCount > 0 && (
                 <Badge className="bg-primary text-primary-foreground font-bold text-sm px-2.5">
@@ -324,7 +331,7 @@ export default function NotificationsPage() {
           { label: "مواعيد", value: notifications.filter((n) => n.category === "المواعيد").length, icon: Calendar, color: "text-accent", bg: "bg-accent/10" },
           { label: "الإجمالي", value: notifications.length, icon: RefreshCw, color: "text-muted-foreground", bg: "bg-secondary/40" },
         ].map((s, i) => (
-          <Card key={i} className="border-none bg-card/50 border border-white/5">
+          <Card key={i} className="border border-primary/15 shadow-sm shadow-primary/5 bg-card/50 hover:border-primary/30 transition-all duration-200">
             <CardContent className="p-4 flex items-center gap-3">
               <div className={`p-2.5 rounded-xl ${s.bg}`}>
                 <s.icon className={`h-4 w-4 ${s.color}`} />
@@ -372,7 +379,7 @@ export default function NotificationsPage() {
 
       {/* Notifications */}
       {filtered.length === 0 ? (
-        <Card className="border-none bg-card/50 border border-white/5">
+        <Card className="border border-primary/15 shadow-sm shadow-primary/5 bg-card/50 hover:border-primary/30 transition-all duration-200">
           <CardContent className="p-20 text-center text-muted-foreground">
             <BellOff className="h-12 w-12 mx-auto mb-4 opacity-20" />
             <p className="font-bold">لا توجد إشعارات</p>
