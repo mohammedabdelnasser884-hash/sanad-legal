@@ -344,6 +344,7 @@ export default function SettingsPage() {
 
           {/* Notifications Section */}
           {activeSection === "notifications" && (
+            <>
             <Card className="border border-primary/15 shadow-sm shadow-primary/5 bg-card/50 hover:border-primary/30 transition-all duration-200">
               <CardContent className="p-6 space-y-1 divide-y divide-white/5">
                 {[
@@ -389,6 +390,7 @@ export default function SettingsPage() {
                 <Save className="h-4 w-4 ml-2" /> حفظ التغييرات
               </Button>
             </div>
+            </>
           )}
           {activeSection === "privacy" && (
             <div className="space-y-5">
