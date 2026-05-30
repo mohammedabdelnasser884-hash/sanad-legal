@@ -16,7 +16,6 @@
   }
 
   :root {
-    /* ── Light theme — Navy + Gold ── */
     --background: 220 20% 97%;
     --foreground: 222 47% 18%;
 
@@ -26,18 +25,15 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 18%;
 
-    /* Primary: #1E2B4A نيلي غامق */
     --primary: 222 42% 20%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary */
     --secondary: 220 14% 93%;
     --secondary-foreground: 222 42% 20%;
 
     --muted: 220 14% 93%;
     --muted-foreground: 220 9% 43%;
 
-    /* Accent: #C9A84C ذهبي */
     --accent: 42 54% 55%;
     --accent-foreground: 0 0% 100%;
 
@@ -49,7 +45,6 @@
     --ring: 42 54% 55%;
     --radius: 0.75rem;
 
-    /* Sidebar */
     --sidebar-background: 222 42% 20%;
     --sidebar-foreground: 0 0% 100%;
     --sidebar-primary: 42 54% 55%;
@@ -76,7 +71,6 @@
   }
 }
 
-/* Subtle scroll */
 .subtle-scroll::-webkit-scrollbar { width: 4px; }
 .subtle-scroll::-webkit-scrollbar-track { background: transparent; }
 .subtle-scroll::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 2px; }
