@@ -14,6 +14,12 @@ export default {
         headline: ['Cairo', 'sans-serif'],
         code: ['monospace'],
       },
+      fontSize: {
+        '5xl': ['3rem', { lineHeight: '1.1', fontWeight: '900' }],
+        '4xl': ['2.25rem', { lineHeight: '1.15', fontWeight: '800' }],
+        '3xl': ['1.875rem', { lineHeight: '1.2', fontWeight: '800' }],
+        'display': ['2.5rem', { lineHeight: '1.1', fontWeight: '900', letterSpacing: '-0.03em' }],
+      },
       colors: {
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
