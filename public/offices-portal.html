@@ -403,12 +403,12 @@
 <!--  JavaScript                                           -->
 <!-- ══════════════════════════════════════════════════════ -->
 <script>
-// ─── Config ───────────────────────────────────────────
-// تنبيه: الباسورد بقى Secret على السيرفر (SAAS_ADMIN_PASSWORD) ومش موجود هنا أبداً.
-// والتعامل مع جدول tenants بقى عن طريق
-// Edge Function اسمها "saas-admin" بتستخدم service_role key على
-// السيرفر، مش anon key من المتصفح. راجع supabase/functions/saas-admin
-const FN_URL      = 'https://lrdshyohvymbdanoxgyy.supabase.co/functions/v1/saas-admin';
+// ─── Config ─────────────────────────────────────────────────────────────
+// ⚙️  لو غيّرت الـ Supabase project، غيّر SUPABASE_PROJECT_REF بس هنا
+// ─────────────────────────────────────────────────────────────────────────
+const SUPABASE_PROJECT_REF = 'lrdshyohvymbdanoxgyy'; // ← غيّر هنا فقط
+const FN_URL = `https://${SUPABASE_PROJECT_REF}.supabase.co/functions/v1/saas-admin`;
+// ─────────────────────────────────────────────────────────────────────────
 const TABLE       = 'tenants';
 
 // ─── أمان: تهريب أي نص قبل إدراجه في innerHTML ───────────
