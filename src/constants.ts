@@ -201,13 +201,45 @@ const OFFICE_KEY_MAP: Record<string,string> = {
   groq_key:              'groq_key',
 };
 
-// cache للصف كله عشان منعملش query لكل key
+// ══════════════════════════════════════════
+//  tenant_id الحالي — Multi-tenancy
+// ══════════════════════════════════════════
+// ⚠️ office_settings كان قبل كده صف واحد عام بدون فلترة tenant_id —
+// يعني كل المكاتب على نفس المشروع كانوا بيشتركوا في نفس الإعدادات
+// (مفتاح Groq، توكن تيليجرام، اسم المكتب، البنك...). دلوقتي كل قراءة/كتابة
+// لازم تتفلتر بـ tenant_id المكتب الحالي.
+//
+// بدل ما نغيّر الـ signature بتاع loadOfficeSetting/saveOfficeSetting في
+// كل استدعاء ليهم (منتشرين في تسع ملفات مختلفة)، App.tsx بينده على
+// setCurrentTenantId() مرة واحدة لما الـ profile يتحمّل بعد تسجيل
+// الدخول، وكل الدوال هنا بتستخدم القيمة دي تلقائيًا.
+let _currentTenantId: string | null = null;
+
+function setCurrentTenantId(tenantId: string | null) {
+  if (_currentTenantId !== tenantId) {
+    _currentTenantId = tenantId;
+    _officeCache = null; // لازم نمسح الكاش عند تبديل المستخدم/المكتب
+  }
+}
+
+// cache للصف كله عشان منعملش query لكل key — مفتاحه tenant_id الحالي
 let _officeCache: Record<string,any>|null = null;
+let _officeCacheTenantId: string | null = null;
 
 async function _loadOfficeRow(){
-  if(_officeCache) return _officeCache;
-  const {data}=await db.from('office_settings').select('*').limit(1).single();
+  if(_officeCache && _officeCacheTenantId === _currentTenantId) return _officeCache;
+  if(!_currentTenantId){
+    // لسه مفيش tenant معروف (مثلاً قبل اكتمال تحميل profile) — رجّع صف
+    // فاضي بدل ما نرجّع بيانات مكتب عشوائي.
+    return {};
+  }
+  const {data} = await db.from('office_settings')
+    .select('*')
+    .eq('tenant_id', _currentTenantId)
+    .limit(1)
+    .maybeSingle();
   _officeCache = data || {};
+  _officeCacheTenantId = _currentTenantId;
   return _officeCache;
 }
 
@@ -218,6 +250,10 @@ async function loadOfficeSetting(key: string): Promise<string|null>{
 }
 
 async function saveOfficeSetting(key: string, value: string): Promise<void>{
+  if(!_currentTenantId){
+    console.error('saveOfficeSetting: لا يوجد tenant_id حالي — تم تجاهل الحفظ');
+    return;
+  }
   const col = OFFICE_KEY_MAP[key] || key;
   _officeCache = null;
   const row = await _loadOfficeRow();
@@ -225,8 +261,9 @@ async function saveOfficeSetting(key: string, value: string): Promise<void>{
   if(id){
     await db.from('office_settings').update({[col]: value}).eq('id', id);
   } else {
-    await db.from('office_settings').insert({[col]: value});
+    await db.from('office_settings').insert({[col]: value, tenant_id: _currentTenantId});
   }
+  _officeCache = null; // أعد التحميل في النداء الجاي بعد التحديث
 }
 
 // ══════════════════════════════════════════
@@ -274,4 +311,4 @@ const SanadIcon = ({size=48}: {size?:number}) =>
       border:'1px solid rgba(212,175,55,0.18)',flexShrink:0}
   }, React.createElement(SanadMark, {size:size*0.68}));
 
-export { I, COUNTRY_CONFIGS, loadOfficeSetting, saveOfficeSetting, SanadMark, SanadLogo, SanadIcon };
+export { I, COUNTRY_CONFIGS, loadOfficeSetting, saveOfficeSetting, setCurrentTenantId, SanadMark, SanadLogo, SanadIcon };
