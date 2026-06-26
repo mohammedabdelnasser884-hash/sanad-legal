@@ -35,7 +35,14 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-const DEFAULT_MODEL = 'llama-3.1-8b-instant';
+// النماذج المسموح بيها فقط — whitelist للحماية من أي محاولة حقن نموذج غير معتمد
+const ALLOWED_MODELS = [
+  'llama-3.3-70b-versatile',
+  'llama-3.1-70b-versatile',
+  'llama-3.1-8b-instant',
+  'mixtral-8x7b-32768',
+] as const;
+const DEFAULT_MODEL  = 'llama-3.3-70b-versatile'; // الافتراضي الأقوى
 const MAX_TOKENS_CAP = 2000; // حماية من استهلاك مفرط لو الفرونت إند طلب رقم ضخم
 
 function json(data: unknown, status = 200) {
@@ -77,15 +84,13 @@ async function getCallerProfile(callerId: string) {
 }
 
 async function getOfficeGroqKey(tenantId: string | null) {
-  // ⚠️ ملحوظة: في نسخة الكود الحالية، جدول office_settings مش متعمول له
-  // فلترة بـ tenant_id في أي مكان بالفرونت إند — يعني فعليًا صف واحد عام
-  // لكل المكاتب على نفس المشروع (مش معزول per-tenant). الفلتر تحت بيتفعّل
-  // بس لو فيه عمود tenant_id فعلاً وبيُملأ صح؛ لو لأ، هيرجع لأول صف موجود
-  // (نفس سلوك الفرونت إند القديم) — وده عيب تعدد-المكاتب يستحق إصلاح منفصل
-  // (كل مكتب لازم يكون عنده صف office_settings خاص بيه ومفلتر بـ tenant_id
-  // في RLS وفي الكود، مش بس في هذه الفنكشن).
-  const filter = tenantId ? `tenant_id=eq.${tenantId}&` : '';
-  const rows = await rest(`office_settings?${filter}select=groq_key&limit=1`);
+  // ✅ office_settings دلوقتي معمول له فلترة tenant_id فعليًا (راجع
+  // multi-tenant-office-settings-migration.sql + constants.ts/useAdminOffice.ts
+  // في الفرونت إند) — كل مكتب عنده صف مستقل، وRLS كمان بيفلتر بنفس
+  // tenant_id. هنا ما فيش fallback لأول صف موجود لو tenantId غير معروف،
+  // عشان منرجّعش مفتاح مكتب تاني بالغلط.
+  if (!tenantId) return null;
+  const rows = await rest(`office_settings?tenant_id=eq.${tenantId}&select=groq_key&limit=1`);
   const row = Array.isArray(rows) ? rows[0] : null;
   return row?.groq_key || null;
 }
@@ -113,6 +118,11 @@ Deno.serve(async (req: Request) => {
     const systemPrompt = String(body.system_prompt || '');
     const maxTokens = Math.min(Number(body.max_tokens) || 1500, MAX_TOKENS_CAP);
     const temperature = typeof body.temperature === 'number' ? body.temperature : 0.3;
+    // اقبل المودل من الفرونت بس لو في الـ whitelist، وإلا استخدم الافتراضي الأقوى
+    const requestedModel = String(body.model || '');
+    const model = (ALLOWED_MODELS as readonly string[]).includes(requestedModel)
+      ? requestedModel
+      : DEFAULT_MODEL;
 
     const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -121,7 +131,7 @@ Deno.serve(async (req: Request) => {
         Authorization: `Bearer ${groqKey}`,
       },
       body: JSON.stringify({
-        model: DEFAULT_MODEL,
+        model,
         messages: [{ role: 'system', content: systemPrompt }, ...messages],
         max_tokens: maxTokens,
         temperature,
