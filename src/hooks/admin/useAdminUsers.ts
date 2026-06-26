@@ -122,11 +122,6 @@ export function useAdminUsers(db: any, fetchLawyers: () => void) {
     fetchLawyers();
   };
 
-  // ── جلب النسخ الاحتياطية ──
-  const fetchBackups = useCallback(async () => {
-    setLoadingBackups(true);
-    const { data } = await db.from('backups')
-
   return {
     editUser, setEditUser,
     showAddUser, setShowAddUser,
