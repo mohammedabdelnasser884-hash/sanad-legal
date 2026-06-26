@@ -104,7 +104,10 @@ export function useAdminLegalLibrary(db: any) {
   };
 
   const handleProcessLaw = async (law) => {
-    setProcessingLaw({ id: law.id, stage: 'extracting', processed: 0, total: 0 });
+    // ملحوظة: المعالجة هنا خطوة واحدة فقط (استخراج المواد من PDF) — المساعد
+    // القانوني يعتمد على بحث نصي (search_law_articles) فلا توجد خطوة
+    // "فهرسة دلالية" لاحقة تنتظرها الواجهة قبل اكتمال المعالجة.
+    setProcessingLaw({ id: law.id });
     try {
       const { data: extractData, error: extractErr } = await db.functions.invoke('process-law-extract', { body: { law_id: law.id } });
       if (extractErr) throw new Error(await getFnErrorMessage(extractErr));
