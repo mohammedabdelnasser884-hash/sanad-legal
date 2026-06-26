@@ -33,17 +33,6 @@ export function useAdminActivity(db: any) {
     setLoadingActivity(false);
   }, [db, activityFilters, activityPage]);
 
-  useEffect(() => {
-    fetchPortalAccess();
-    if (section === 'activity') fetchActivity(activityFilters, activityPage);
-    if (section === 'backup')   fetchBackups();
-    if (section === 'office')   fetchOfficeSettings();
-    if (section === 'legal_library') { fetchLaws(); fetchLegalCategories(); }
-  }, [section, activityFilters, activityPage]);
-
-  // ── المكتبة القانونية: جلب التصنيفات ──
-  const fetchLegalCategories = useCallback(async () => {
-
   return {
     activityLog, activityTotal, loadingActivity,
     activityPage, setActivityPage,
