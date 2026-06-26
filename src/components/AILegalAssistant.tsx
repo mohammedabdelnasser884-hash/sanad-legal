@@ -38,13 +38,18 @@ function ApiKeyInput({onSave, onCancel, initial}){
 
 function AILegalAssistant({onClose, cases, clients, profile, country}){
     const {
+      mode, setMode,
+      selectedModel, setSelectedModel, GROQ_MODELS,
+      hasKey, keyLoading, showKeyInput, setShowKeyInput, saveKey,
       messages, setMessages, input, setInput, loading,
-      apiKey, setApiKey, showKeyInput, setShowKeyInput,
-      topics, activeTopic, setActiveTopic, activeTopicId, setActiveTopicId,
-      showTopics, setShowTopics, groqModel, setGroqModel,
-      inputRef, messagesEndRef,
-      loadTopics, createTopic, selectTopic, deleteTopic, renameTopic,
-      sendMessage, clearMessages,
+      topics, activeTopicId, setActiveTopicId,
+      showTopics, setShowTopics, newTopic, deleteTopic,
+      selectedCase, setSelectedCase,
+      docType, setDocType, docFields, sf,
+      generatedDoc, generatingDoc,
+      copied, copyDoc, printDoc, downloadPDF, generateDocument,
+      sendMessage, inputRef, messagesEndRef,
+      today, activeCfg, DOC_TEMPLATES, colorMap,
     } = useAIAssistant(cases, clients, profile, country);
 
     return React.createElement('div',{className:"fixed inset-0 z-50 flex flex-col bg-premium-bg fade-in"},
@@ -144,6 +149,16 @@ function AILegalAssistant({onClose, cases, clients, profile, country}){
                     )
                 ),
                 React.createElement('div',{className:"flex items-center gap-2"},
+                    // ── Model selector ──
+                    React.createElement('select',{
+                        value: selectedModel,
+                        onChange: (e) => setSelectedModel(e.target.value),
+                        title: "اختار نموذج الذكاء الاصطناعي",
+                        className: "text-[9px] font-bold bg-white/5 border border-white/10 text-slate-300 rounded-lg px-1.5 py-1 appearance-none cursor-pointer hover:border-premium-gold/30 transition-all",
+                        style: {maxWidth:'110px'}
+                    },
+                        GROQ_MODELS.map(m => React.createElement('option',{key:m.id, value:m.id, style:{background:'#0d1a2e'}}, m.label))
+                    ),
                     React.createElement('button',{
                         onClick:()=>setShowKeyInput(true),
                         title:"إعدادات API Key",
@@ -451,7 +466,5 @@ function AILegalAssistant({onClose, cases, clients, profile, country}){
 // ══════════════════════════════════════════
 //  مكون تأكيد الحذف الآمن
 // ══════════════════════════════════════════
-
-export default AILegalAssistant;
 
 export default AILegalAssistant;
