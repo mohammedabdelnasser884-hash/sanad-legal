@@ -1,9 +1,9 @@
 import React from 'react';
 import { I, SanadMark } from '../../constants';
 
-function AppHeader({ profile, setShowMenu, setShowSearch }: any) {
+function AppHeader({ profile, setShowMenu, setShowSearch, isAdmin, fetchCases, casesFilter, loadingCases }: any) {
   return (
-React.createElement('header',{className:"w-full bg-premium-card/80 backdrop-blur-lg border-b border-white/5 px-4 py-2.5 shrink-0 z-40 sticky top-0 relative"},
+    React.createElement('header',{className:"w-full bg-premium-card/80 backdrop-blur-lg border-b border-white/5 px-4 py-2.5 shrink-0 z-40 sticky top-0 relative"},
         // ── الصف الوحيد: أفاتار + اسم + بحث + هامبرغر (هامبرغر على اليسار) ──
         React.createElement('div',{className:"flex items-center gap-2.5"},
             // أفاتار + اسم + رول
@@ -44,7 +44,7 @@ React.createElement('header',{className:"w-full bg-premium-card/80 backdrop-blur
             ),
             // زر الهامبرغر — على الشمال (آخر العناصر في RTL)
             React.createElement('button',{
-                onClick:()=>setShowMenu(p=>!p),
+                onClick:()=>setShowMenu((p: boolean)=>!p),
                 className:"w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex flex-col items-center justify-center gap-[5px] active:scale-95 transition-transform shrink-0",
                 title:"القائمة"
             },
@@ -53,7 +53,7 @@ React.createElement('header',{className:"w-full bg-premium-card/80 backdrop-blur
                 React.createElement('span',{className:"block w-4 h-0.5 bg-premium-gold rounded-full"})
             )
         )
-    );
+    )
   );
 }
 
