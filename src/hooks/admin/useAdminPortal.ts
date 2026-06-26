@@ -6,6 +6,7 @@ export function useAdminPortal(db: any) {
   const [portalClient, setPortalClient] = useState(null);
   const [clientSearch, setClientSearch] = useState('');
   const [showAddPortalUser, setShowAddPortalUser] = useState(false);
+  const [savingPortal, setSaving] = useState(false);
 
   const fetchPortalAccess = useCallback(async () => {
     const { data } = await db.from('client_portal_pins').select('*');
@@ -34,6 +35,7 @@ export function useAdminPortal(db: any) {
     portalAccess, portalClient, setPortalClient,
     clientSearch, setClientSearch,
     showAddPortalUser, setShowAddPortalUser,
+    savingPortal,
     fetchPortalAccess, handleSavePortal
   };
 }
