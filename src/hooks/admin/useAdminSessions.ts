@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
+import { toast } from '../../utils';
+import { callAdminAction } from '../../supabaseClient';
 
-export function useAdminSessions(db: any, section: string | null) {
+export function useAdminSessions(db: any, section: string | null, profile: any) {
   const [activeSessions, setActiveSessions] = useState([]);
   const [loadingSessions, setLoadingSessions] = useState(false);
   const [terminatingSession, setTerminatingSession] = useState(null);
@@ -102,9 +104,6 @@ export function useAdminSessions(db: any, section: string | null) {
     const interval = setInterval(fetchActiveSessions, 30000);
     return () => clearInterval(interval);
   }, [section, sessionsAutoRefresh]);
-
-  // ── جلب بيانات بوابة الموكلين ──
-  const fetchPortalAccess = useCallback(async () => {
 
   return {
     activeSessions, loadingSessions,
