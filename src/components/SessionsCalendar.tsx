@@ -85,5 +85,3 @@ function SessionsCalendar({ db, cases, clients, onOpenCase, onOpenReminders, onN
 }
 
 export default SessionsCalendar;
-
-export default SessionsCalendar;
