@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { db, SUPA_URL, SUPA_KEY } from './supabaseClient';
-import { I, COUNTRY_CONFIGS, SanadMark } from './constants';
+import { I, COUNTRY_CONFIGS, SanadMark, loadOfficeSetting, setCurrentTenantId } from './constants';
 import { toast } from './utils';
 import { useNavigation } from './useNavigation';
 import LoginScreen from './components/LoginScreen';
@@ -68,6 +68,14 @@ function App() {
         setAuthLoading(false);
     }, [authUser, authLoading]);
 
+    // ── ضبط tenant_id الحالي لكل قراءات/كتابات office_settings —
+    // لازم يحصل قبل أي نداء لـ loadOfficeSetting/saveOfficeSetting، وكمان
+    // عند تسجيل الخروج (profile=null) عشان منفضلش شايلين tenant قديم في
+    // الكاش لمستخدم بعده على نفس الجهاز. ──
+    useEffect(() => {
+        setCurrentTenantId(profile?.tenant_id ?? null);
+    }, [profile]);
+
     useEffect(() => {
         if (profile !== null) setAuthLoading(false);
     }, [profile]);
@@ -113,11 +121,19 @@ function App() {
         if (saved) return saved === 'dark';
         return true;
     });
-    const [country, setCountry] = useState('SA');
+    const [country, setCountry] = useState('EG');
     const [dbOnline, setDbOnline] = useState<boolean|null>(null);
 
+    // ── تحميل الدولة من office_settings بعد ما الـ profile يتحمّل ──
+    useEffect(() => {
+        if (!profile) return;
+        loadOfficeSetting('country').then(saved => {
+            if (saved && COUNTRY_CONFIGS[saved]) setCountry(saved);
+        }).catch(() => {/* استخدم SA كافتراضي */});
+    }, [profile]);
+
     // ── Hooks ─────────────────────────────────────────────────
-    const { healthErrors }                              = useHealthMonitor(profile);
+    const { healthErrors, setHealthErrors }                     = useHealthMonitor(profile);
     const { handlePwaInstall }                          = usePwaInstall();
     const feed                                          = useDashboardFeed(profile);
     const {
@@ -138,10 +154,38 @@ function App() {
         fetchCases, fetchLawyers, fetchClients,
     } = data;
     const { sendTelegram }                                      = useTelegramAlerts(profile);
-    const { handleLogout, handleSaveCase, handleDeleteCase, handleUpdateCase }
-        = useCaseActions(db, sendTelegram, fetchCases, profile, cases, lawyers, clients);
-    const { handleSaveClient, handleDeleteClient, handleUpdateClient, handleSaveLawyer }
-        = useClientActions(db, sendTelegram, fetchClients, fetchLawyers, profile);
+
+    // ── Modal helpers ─────────────────────────────────────────
+    const setSelectedCase = useCallback((caseOrUpdater: any, initialTab: string = 'timeline') => {
+        if (typeof caseOrUpdater === 'function') { _setSelectedCase(caseOrUpdater); return; }
+        if (caseOrUpdater) {
+            _setSelectedCase(caseOrUpdater);
+            setSelectedCaseInitialTab(initialTab);
+            nav.openModal('caseDetail');
+        } else { _setSelectedCase(null); }
+    }, [nav]);
+
+    const setSelectedClient = useCallback((clientOrNull: any) => {
+        if (clientOrNull) { _setSelectedClient(clientOrNull); nav.openModal('clientDetail'); }
+        else              { _setSelectedClient(null); }
+    }, [nav]);
+
+    const setDeleteConfirm = useCallback((v: any) => {
+        if (v) { _setDeleteConfirm(v); nav.openModal('delete'); }
+        else   { _setDeleteConfirm(null); }
+    }, [nav]);
+
+    const { handleLogout, handleSaveCase, handleDeleteCase, handleUpdateCase } = useCaseActions({
+        db, sendTelegram, fetchCases, cases, lawyers, clients, selectedCase,
+        setCases, setLawyers, setClients, setProfile, setAuthUser,
+        setSelectedCase, setDeleteConfirm, setSavingCase, setShowCaseModal,
+        casesFilter, nav,
+    });
+    const { handleSaveClient, handleDeleteClient, handleUpdateClient, handleSaveLawyer } = useClientActions({
+        db, sendTelegram, fetchClients, fetchLawyers, clients, clientSearch,
+        setClients, setSelectedClient, setDeleteConfirm, setSavingClient,
+        setSavingLawyer, setShowClientModal, setShowLawyerModal, nav,
+    });
 
     useAutoLogout(profile, () => {
         setCases([]); setLawyers([]); setClients([]);
@@ -195,26 +239,6 @@ function App() {
         if (profile) { fetchTodaySessions(); fetchUpcomingSessions(); fetchMissedSessions(); fetchTasks(); }
     }, [profile]);
 
-    // ── Modal helpers ─────────────────────────────────────────
-    const setSelectedCase = useCallback((caseOrUpdater: any, initialTab: string = 'timeline') => {
-        if (typeof caseOrUpdater === 'function') { _setSelectedCase(caseOrUpdater); return; }
-        if (caseOrUpdater) {
-            _setSelectedCase(caseOrUpdater);
-            setSelectedCaseInitialTab(initialTab);
-            nav.openModal('caseDetail');
-        } else { _setSelectedCase(null); }
-    }, [nav]);
-
-    const setSelectedClient = useCallback((clientOrNull: any) => {
-        if (clientOrNull) { _setSelectedClient(clientOrNull); nav.openModal('clientDetail'); }
-        else              { _setSelectedClient(null); }
-    }, [nav]);
-
-    const setDeleteConfirm = useCallback((v: any) => {
-        if (v) { _setDeleteConfirm(v); nav.openModal('delete'); }
-        else   { _setDeleteConfirm(null); }
-    }, [nav]);
-
     // ─────────────────────────────────────────────────────────
     //  Loading screen
     // ─────────────────────────────────────────────────────────
@@ -240,7 +264,7 @@ function App() {
     // ─────────────────────────────────────────────────────────
     //  Render
     // ─────────────────────────────────────────────────────────
-    const Header      = React.createElement(AppHeader, { profile, setShowMenu: (v: boolean) => setShowMore(v), setShowSearch });
+    const Header      = React.createElement(AppHeader, { profile, setShowMenu: (v: boolean) => setShowMore(v), setShowSearch, isAdmin, fetchCases, casesFilter, loadingCases: casesLoading });
     const Dashboard   = React.createElement(DashboardTab, {
         profile, cases, clients,
         todaySessions, upcomingSessions, missedSessions,
@@ -248,7 +272,8 @@ function App() {
         todayOpen, setTodayOpen, upcomingOpen, setUpcomingOpen,
         upcomingTasksOpen, setUpcomingTasksOpen,
         setSelectedCase, setShowCaseModal, setShowClientModal, setShowNewSessionModal,
-        setTab, setRemindersInitialFilter,
+        setTab, setRemindersInitialFilter, setSessionsInitialTab,
+        dbOnline, healthErrors, setHealthErrors,
     });
     const CasesTabContent   = React.createElement(CasesTab, {
         cases, casesFilter, setCasesFilter, casesPage, setCasesPage,
@@ -349,6 +374,8 @@ function App() {
                     db, cases, clients,
                     onOpenCase: (c: any) => { setSelectedCase(c, 'timeline'); },
                     onOpenReminders: () => { setRemindersInitialFilter('overdue'); setTab('reminders'); },
+                    onNotify: sendTelegram,
+                    onSessionAdded: () => { fetchTodaySessions(); fetchUpcomingSessions(); fetchCases(0, casesFilter); },
                     initialTab: sessionsInitialTab,
                 })
             ),
@@ -360,7 +387,7 @@ function App() {
                         className: 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-premium-gold/10 border border-premium-gold/25 text-premium-gold text-[10px] font-black active:scale-95 transition-all hover:bg-premium-gold/15'
                     }, '📊 الملخص المالي')
                 ),
-                React.createElement(FeesTab, { db, cases, clients, showSummaryModal: showFeesSummary, setShowSummaryModal: setShowFeesSummary })
+                React.createElement(FeesTab, { db, cases, clients, showSummaryModal: showFeesSummary, setShowSummaryModal: setShowFeesSummary, country })
             ),
             tab === 'reminders' && React.createElement('div', { className: 'space-y-4 fade-in' },
                 React.createElement('h3', { className: 'text-sm font-black text-white' }, '🔔 التذكيرات المخصصة'),
