@@ -1,8 +1,10 @@
 import React from 'react';
 import { I } from '../../constants';
 
+const PAGE_SIZE = 20;
+
 function ClientsTab({ cases, clients, clientSearch, setClientSearch, clientsPage, setClientsPage, clientsTotal, clientsLoading, fetchClients, setSelectedClient, setShowClientModal }: any) {
-  const ClientsTab =
+  return React.createElement(React.Fragment, null,
         // هيدر + زر إضافة
         React.createElement('div',{className:"flex items-center justify-between"},
             React.createElement('h3',{className:"text-sm font-black text-white"},"سجل الموكلين"),
@@ -13,7 +15,7 @@ function ClientsTab({ cases, clients, clientSearch, setClientSearch, clientsPage
         React.createElement('div',{className:"relative"},
             React.createElement('input',{
                 type:"text",value:clientSearch,
-                onChange:e=>{
+                onChange:(e: React.ChangeEvent<HTMLInputElement>)=>{
                     const val=e.target.value;
                     setClientSearch(val);
                     clearTimeout((window as any)._clientSearchTimer);
@@ -38,8 +40,8 @@ function ClientsTab({ cases, clients, clientSearch, setClientSearch, clientsPage
                 React.createElement('p',{className:"text-slate-500 text-xs"},clientSearch?"جرب كلمة بحث مختلفة":"اضغط على موكل جديد لإضافة أول موكل.")
               )
             :React.createElement('div',{className:"space-y-2"},
-                clients.map(c=>{
-                    const caseCount = cases.filter(ca=>ca.client_id===c.id).length;
+                clients.map((c: any)=>{
+                    const caseCount = cases.filter((ca: any)=>ca.client_id===c.id).length;
                     return React.createElement('div',{
                         key:c.id,
                         onClick:()=>setSelectedClient(c),
@@ -84,7 +86,6 @@ function ClientsTab({ cases, clients, clientSearch, setClientSearch, clientsPage
                     },"التالي ←")
                 )
             )
-    );
-  return ClientsTab;
+  );
 }
 export default ClientsTab;
