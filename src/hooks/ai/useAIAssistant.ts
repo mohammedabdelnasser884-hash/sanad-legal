@@ -1,13 +1,19 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { db } from '../../supabaseClient';
 import { loadOfficeSetting, COUNTRY_CONFIGS } from '../../constants';
 import { toast, escapeHtml } from '../../utils';
 
-const TOPICS_KEY = 'sanad_ai_topics';
-const GROQ_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-70b-versatile', 'mixtral-8x7b-32768'];
+// النماذج المتاحة — يجب أن تطابق ALLOWED_MODELS في edge function ai-chat
+const GROQ_MODELS = [
+    { id: 'llama-3.3-70b-versatile',  label: 'Llama 3.3 · 70B (موصى به)' },
+    { id: 'llama-3.1-70b-versatile',  label: 'Llama 3.1 · 70B' },
+    { id: 'llama-3.1-8b-instant',     label: 'Llama 3.1 · 8B (سريع)' },
+    { id: 'mixtral-8x7b-32768',       label: 'Mixtral · 8x7B' },
+];
 
 export function useAIAssistant(cases: any[], clients: any[], profile: any, country: string) {
-function AILegalAssistant({onClose, cases, clients, profile, country}){
     const [mode, setMode] = useState('chat');
+    const [selectedModel, setSelectedModel] = useState('llama-3.3-70b-versatile');
     // ملحوظة أمان: مفتاح Groq بقى مخزّن على السيرفر فقط ولا يوصل للمتصفح إطلاقاً.
     // الفرونت إند بقى بس يعرف "فيه مفتاح مضبوط ولا لأ" (hasKey)، عشان يقرر
     // يعرض شاشة "ضبط المفتاح" أو لأ — مش هو اللي بيستخدم المفتاح في النداء.
@@ -18,10 +24,12 @@ function AILegalAssistant({onClose, cases, clients, profile, country}){
     // ── نتحقق إن في مفتاح مضبوط للمكتب (من غير ما نجيب قيمته) ──
     useEffect(() => {
         let cancelled = false;
+        const tenantId = profile?.tenant_id ?? null;
         const checkKey = async () => {
             setKeyLoading(true);
+            if (!tenantId) { if (!cancelled) { setHasKey(false); setKeyLoading(false); } return; }
             try {
-                const { data } = await db.from('office_settings').select('id').not('groq_key', 'is', null).limit(1).single();
+                const { data } = await db.from('office_settings').select('id').eq('tenant_id', tenantId).not('groq_key', 'is', null).limit(1).maybeSingle();
                 if (!cancelled) setHasKey(!!data?.id);
             } catch(e) {
                 if (!cancelled) setHasKey(false);
@@ -31,7 +39,7 @@ function AILegalAssistant({onClose, cases, clients, profile, country}){
         };
         checkKey();
         return () => { cancelled = true; };
-    }, []);
+    }, [profile?.tenant_id]);
 
 
     // ── Topics persisted in localStorage ──
@@ -174,12 +182,14 @@ ${list}
     };
 
     const saveKey = async (k) => {
+        const tenantId = profile?.tenant_id ?? null;
+        if (!tenantId) { toast('❌ تعذر تحديد المكتب الحالي', true); return; }
         try {
-            const { data: existing } = await db.from('office_settings').select('id').limit(1).single();
+            const { data: existing } = await db.from('office_settings').select('id').eq('tenant_id', tenantId).limit(1).maybeSingle();
             if (existing?.id) {
                 await db.from('office_settings').update({ groq_key: k }).eq('id', existing.id);
             } else {
-                await db.from('office_settings').insert({ groq_key: k });
+                await db.from('office_settings').insert({ groq_key: k, tenant_id: tenantId });
             }
             setHasKey(true);
             setShowKeyInput(false);
@@ -190,7 +200,7 @@ ${list}
     };
 
     // ── نداء المساعد القانوني عبر الإيدج فانكشن ai-chat (المفتاح يفضل على السيرفر) ──
-    const callGemini = async (prompt, history, legalContextBlock = '') => {
+    const callAI = async (prompt, history, legalContextBlock = '') => {
         const chatMessages = history
             ? history.map(m=>({role: m.role==='assistant'?'assistant':'user', content: m.text}))
             : [{role:'user', content: prompt}];
@@ -200,6 +210,7 @@ ${list}
                 system_prompt: SYSTEM_PROMPT + legalContextBlock,
                 max_tokens: 1500,
                 temperature: 0.3,
+                model: selectedModel,
             },
         });
         if (error) throw new Error(error.message || 'تعذر الاتصال بالمساعد القانوني');
@@ -225,12 +236,11 @@ ${list}
             const legalContextBlock = buildLegalContextBlock(retrieved);
             // قطّع التاريخ قبل الإرسال لتجنب تجاوز context window
             const trimmedMessages = newMessages.slice(-MAX_HISTORY_MESSAGES);
-            const reply = await callGemini(null, trimmedMessages, legalContextBlock);
+            const reply = await callAI(null, trimmedMessages, legalContextBlock);
             setMessages(p=>[...p,{role:'assistant',text:reply, references: retrieved}]);
         } catch(e) {
             const msg = e.message?.includes('401')||e.message?.includes('invalid')||e.message?.includes('key') ? '🔑 API Key غير صحيح. اضغط زر المفتاح لتحديثه.' : '⚠️ تعذر الاتصال: '+e.message;
             setMessages(p=>[...p,{role:'assistant',text:msg}]);
-        }
         }
         setLoading(false);
     };
@@ -286,7 +296,7 @@ ${caseInfo}
             const retrievalQuery = [docFields.subject, docFields.facts, docFields.claims].filter(Boolean).join(' — ');
             const retrieved = retrievalQuery ? await retrieveLegalArticles(retrievalQuery) : [];
             const legalContextBlock = buildLegalContextBlock(retrieved, true);
-            const reply = await callGemini(prompt, null, legalContextBlock);
+            const reply = await callAI(prompt, null, legalContextBlock);
             setGeneratedDoc(isMemo ? memoHeader + '\n\n' + reply : reply);
         } catch(e) {
             setGeneratedDoc('⚠️ حدث خطأ أثناء توليد المستند، يرجى المحاولة مرة أخرى');
@@ -472,13 +482,17 @@ ${caseInfo}
 
 
   return {
+    mode, setMode,
+    selectedModel, setSelectedModel, GROQ_MODELS,
+    hasKey, keyLoading, showKeyInput, setShowKeyInput, saveKey,
     messages, setMessages, input, setInput, loading, setLoading,
-    apiKey, setApiKey, showKeyInput, setShowKeyInput,
-    topics, setTopics, activeTopic, setActiveTopic,
-    showTopics, setShowTopics, groqModel, setGroqModel,
-    inputRef, messagesEndRef,
-    activeTopicId, setActiveTopicId,
-    loadTopics, createTopic, selectTopic, deleteTopic, renameTopic, newTopic,
-    sendMessage, clearMessages,
+    topics, setTopics, activeTopicId, setActiveTopicId,
+    showTopics, setShowTopics, newTopic, deleteTopic,
+    selectedCase, setSelectedCase,
+    docType, setDocType, docFields, sf,
+    generatedDoc, setGeneratedDoc, generatingDoc,
+    copied, copyDoc, printDoc, downloadPDF, generateDocument,
+    sendMessage, inputRef, messagesEndRef,
+    today, activeCfg, DOC_TEMPLATES, colorMap,
   };
 }
