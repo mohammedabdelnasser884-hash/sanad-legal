@@ -66,7 +66,9 @@ import ReactDOM from 'https://esm.sh/react-dom@18.2.0/client';
 // تنبيه: مفيش اتصال مباشر بـ Supabase من المتصفح هنا تاني.
 // كل حاجة بتعدّي على Edge Function اسمها client-portal-api، وهي
 // اللي بتتحقق من الـ PIN وتجيب البيانات على السيرفر، مش هنا.
-const FN_URL="https://lrdshyohvymbdanoxgyy.supabase.co/functions/v1/client-portal-api";
+// ⚙️  لو غيّرت الـ Supabase project، غيّر SUPABASE_PROJECT_REF بس هنا
+const SUPABASE_PROJECT_REF = 'lrdshyohvymbdanoxgyy'; // ← غيّر هنا فقط
+const FN_URL = `https://${SUPABASE_PROJECT_REF}.supabase.co/functions/v1/client-portal-api`;
 
 async function callApi(action,payload={}){
   const r=await fetch(FN_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...payload})});
