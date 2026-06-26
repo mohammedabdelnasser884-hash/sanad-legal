@@ -85,12 +85,6 @@ export function useAdminBackup(db: any) {
     toast(`✅ تمت الاستعادة — ${restored} جداول`);
   };
 
-  // ── حفظ بوابة الموكل ──
-  const handleSavePortal = async (data) => {
-    setSaving(true);
-    const { error } = await db.from('client_portal_pins').upsert([{
-      client_id: data.client_id,
-
   return {
     backups, loadingBackups,
     creatingBackup, backupProgress,
