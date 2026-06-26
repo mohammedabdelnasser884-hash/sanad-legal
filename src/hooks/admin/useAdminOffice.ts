@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { toast, validateUploadFile } from '../../utils';
 
-export function useAdminOffice(db: any) {
+export function useAdminOffice(db: any, tenantId: string | null) {
   const [officeSettings, setOfficeSettings] = useState({
     officeName: '', officePhone: '', officeEmail: '', officeAddress: '',
     logoUrl: '', country: 'EG'
@@ -12,19 +12,21 @@ export function useAdminOffice(db: any) {
   const [logoPreview, setLogoPreview] = useState(null);
 
   const fetchOfficeSettings = useCallback(async () => {
+    if (!tenantId) return; // لسه مفيش tenant معروف — متجيب حاجة عشوائية
     setLoadingOffice(true);
     try {
-      const { data } = await db.from('office_settings').select('*').limit(1).single();
+      const { data } = await db.from('office_settings').select('*').eq('tenant_id', tenantId).limit(1).maybeSingle();
       if (data) {
         setOfficeSettings(s => ({ ...s, ...data }));
         if (data.logoUrl) setLogoPreview(data.logoUrl);
       }
     } catch(e) { /* الجدول غير موجود بعد */ }
     setLoadingOffice(false);
-  }, [db]);
+  }, [db, tenantId]);
 
   // ── حفظ إعدادات المكتب ──
   const handleSaveOfficeSettings = async () => {
+    if (!tenantId) { toast('❌ لا يمكن الحفظ، تعذر تحديد المكتب الحالي', true); return; }
     setSavingOffice(true);
     try {
       // رفع الشعار لو في شعار جديد
@@ -45,7 +47,7 @@ export function useAdminOffice(db: any) {
           logoUrl = urlData.publicUrl;
         }
       }
-      const { data: existing } = await db.from('office_settings').select('id').limit(1).single();
+      const { data: existing } = await db.from('office_settings').select('id').eq('tenant_id', tenantId).limit(1).maybeSingle();
       const payload = {
         name:           officeSettings.name           || '',
         slogan:         officeSettings.slogan         || '',
@@ -72,7 +74,7 @@ export function useAdminOffice(db: any) {
       if (existing?.id) {
         ({ error: saveError } = await db.from('office_settings').update(payload).eq('id', existing.id));
       } else {
-        ({ error: saveError } = await db.from('office_settings').insert(payload));
+        ({ error: saveError } = await db.from('office_settings').insert({ ...payload, tenant_id: tenantId }));
       }
       if (saveError) throw saveError;
       setOfficeSettings(s => ({ ...s, logoUrl }));
@@ -83,59 +85,6 @@ export function useAdminOffice(db: any) {
     }
     setSavingOffice(false);
   };
-
-  // ── جلب سجل النشاط مع فلاتر ──
-  const fetchActivity = useCallback(async (filters = activityFilters, page = activityPage) => {
-    setLoadingActivity(true);
-    try {
-      let q = db.from('activity_log').select('*', { count: 'exact' });
-
-      // فلتر المستخدم
-      // بحث حر — Supabase ilike على حقول النص
-      if (filters.search) {
-        const s = '%' + filters.search + '%';
-        q = q.or(`action.ilike.${s},details.ilike.${s},client_name.ilike.${s},case_name.ilike.${s},case_type.ilike.${s},user_name.ilike.${s}`);
-      }
-
-      const from = page * ACTIVITY_PAGE_SIZE;
-      q = q.order('created_at', { ascending: false })
-           .range(from, from + ACTIVITY_PAGE_SIZE - 1);
-
-      const { data, count } = await q;
-      if (data) setActivityLog(data);
-      if (count !== null) setActivityTotal(count);
-    } catch(e) { /* جدول غير موجود بعد */ }
-    setLoadingActivity(false);
-  }, [db, activityFilters, activityPage]);
-
-  useEffect(() => {
-    fetchPortalAccess();
-    if (section === 'activity') fetchActivity(activityFilters, activityPage);
-    if (section === 'backup')   fetchBackups();
-    if (section === 'office')   fetchOfficeSettings();
-    if (section === 'legal_library') { fetchLaws(); fetchLegalCategories(); }
-  }, [section, activityFilters, activityPage]);
-
-  // ── المكتبة القانونية: جلب التصنيفات ──
-  const fetchLegalCategories = useCallback(async () => {
-    try {
-      const { data } = await db.from('legal_categories').select('*').order('name_ar');
-      if (data) setLegalCategories(data);
-    } catch(e) { /* الجدول غير موجود بعد */ }
-  }, [db]);
-
-  // ── المكتبة القانونية: جلب القوانين ──
-  const fetchLaws = useCallback(async () => {
-    setLoadingLaws(true);
-    try {
-      const { data } = await db.from('laws').select('*').order('created_at', { ascending: false });
-      if (data) setLaws(data);
-    } catch(e) { /* الجدول غير موجود بعد */ }
-    setLoadingLaws(false);
-  }, [db]);
-
-  // ── المكتبة القانونية: إضافة / تعديل قانون ──
-  const handleSaveLaw = async (form, file: File|null) => {
 
   return {
     officeSettings, setOfficeSettings,
