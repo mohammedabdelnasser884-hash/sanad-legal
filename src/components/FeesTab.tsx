@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { I, COUNTRY_CONFIGS, loadOfficeSetting, SanadMark } from '../constants';
 import { useFeesActions } from '../hooks/fees/useFeesActions';
 
-function FeesTab({db, cases, clients, showSummaryModal, setShowSummaryModal}){
+function FeesTab({db, cases, clients, showSummaryModal, setShowSummaryModal, country}){
     const {
       fees, payments, expandedPayments, setExpandedPayments,
       loading, showForm, setShowForm, form, setForm, saving, editId, setEditId,
@@ -16,18 +16,11 @@ function FeesTab({db, cases, clients, showSummaryModal, setShowSummaryModal}){
       payClientNameText, setPayClientNameText, feesSearch, setFeesSearch,
       feesFilter, setFeesFilter,
       fetchFees, handleSave, handleAddPayment, handleDeletePayment, handleDelete,
-    } = useFeesActions(db, cases, clients);
+    } = useFeesActions(db, cases, clients, country);
 
-    const [payNote, setPayNote] = useState('');
-    const [confirmDeletePay, setConfirmDeletePay] = useState(null);
-    const [confirmDeleteFee, setConfirmDeleteFee] = useState(null);
-    const [invoiceModal, setInvoiceModal] = useState(null);
-    const [payReceiver, setPayReceiver] = useState('');
-    const [payClientName, setPayClientName] = useState('');
-    const [payClientNameText, setPayClientNameText] = useState('');
-    const [feesSearch, setFeesSearch] = useState('');
-    const [feesFilter, setFeesFilter] = useState<'collected'|'deferred'|'open'>('deferred');
     const [detailsFor, setDetailsFor] = useState(null); // معرف بطاقة الأتعاب المفتوحة تفاصيلها
+    // ── عملة الدولة المختارة في الإعدادات (افتراضي جنيه مصري) ──
+    const currency = COUNTRY_CONFIGS[country||'EG']?.currency || 'جنيه مصري';
 
     // ── توليد رقم فاتورة تسلسلي ──
     const genInvoiceNumber = (allPayments, paymentId) => {
@@ -190,7 +183,7 @@ function FeesTab({db, cases, clients, showSummaryModal, setShowSummaryModal}){
             +'</div>'
             +'<div class="amount-section">'
             +'<div class="amount-label">مبلغ هذه الدفعة</div>'
-            +'<div class="amount-value">'+amount+' جنيه</div>'
+            +'<div class="amount-value">'+amount+' '+currency+'</div>'
             +'<div class="amount-sub">تاريخ الدفع: '+payDate+'</div>'
             +'</div>'
             +notesHtml
@@ -244,13 +237,13 @@ function FeesTab({db, cases, clients, showSummaryModal, setShowSummaryModal}){
             rows += '<tr>'
                 +'<td>'+num+'</td>'
                 +'<td>'+d+'</td>'
-                +'<td>'+amt+' \u062c\u0646\u064a\u0647</td>'
+                +'<td>'+amt+' '+currency+'</td>'
                 +'<td>'+recv+'</td>'
                 +'<td>'+note+'</td>'
                 +'</tr>';
         });
         const totalPaid = (fee.paid_fees||0).toLocaleString('ar-SA',{maximumFractionDigits:0});
-        rows += '<tr class="total-row"><td colspan="2">\u0627\u0644\u0625\u062c\u0645\u0627\u0644\u064a \u0627\u0644\u0645\u062f\u0641\u0648\u0639</td><td>'+totalPaid+' \u062c\u0646\u064a\u0647</td><td colspan="2"></td></tr>';
+        rows += '<tr class="total-row"><td colspan="2">\u0627\u0644\u0625\u062c\u0645\u0627\u0644\u064a \u0627\u0644\u0645\u062f\u0641\u0648\u0639</td><td>'+totalPaid+' '+currency+'</td><td colspan="2"></td></tr>';
 
         const safeCaseName = escapeHtml(caseName);
         const safeClientName = escapeHtml(clientName || '—');
@@ -582,7 +575,7 @@ function FeesTab({db, cases, clients, showSummaryModal, setShowSummaryModal}){
                                     feePayments.map((p,i)=>
                                         React.createElement('div',{key:p.id,className:"flex items-center justify-between bg-white/3 rounded-xl px-3 py-2 gap-2"},
                                             React.createElement('div',{className:"flex-1"},
-                                                React.createElement('p',{className:"text-[10px] font-black text-emerald-400"},fmt(p.amount)+" جنيه"),
+                                                React.createElement('p',{className:"text-[10px] font-black text-emerald-400"},fmt(p.amount)+" "+currency),
                                                 React.createElement('p',{className:"text-[9px] text-slate-500"},fmtDate(p.payment_date)),
                                                 p.received_by && React.createElement('p',{className:"text-[9px] text-blue-400 mt-0.5"},"👤 استلم: "+p.received_by),
                                                 p.notes && React.createElement('p',{className:"text-[9px] text-slate-400 mt-0.5"},"📝 "+p.notes)
@@ -806,7 +799,7 @@ function FeesTab({db, cases, clients, showSummaryModal, setShowSummaryModal}){
                     // مبلغ الدفعة (بارز)
                     React.createElement('div',{className:"bg-gradient-to-l from-amber-900/40 to-yellow-900/20 border border-premium-gold/25 rounded-xl p-3 text-center"},
                         React.createElement('p',{className:"text-[9px] text-premium-gold/70 mb-1"},"💰 مبلغ هذه الدفعة"),
-                        React.createElement('p',{className:"text-2xl font-black text-premium-gold"},invoiceModal.amount+" جنيه")
+                        React.createElement('p',{className:"text-2xl font-black text-premium-gold"},invoiceModal.amount+" "+currency)
                     ),
                     // جدول الإجماليات
                     React.createElement('div',{className:"grid grid-cols-3 gap-1.5"},
@@ -844,7 +837,5 @@ function FeesTab({db, cases, clients, showSummaryModal, setShowSummaryModal}){
 // ══════════════════════════════════════════
 //  التذكيرات المخصصة
 // ══════════════════════════════════════════
-
-export default FeesTab;
 
 export default FeesTab;
