@@ -113,6 +113,16 @@ Deno.serve(async (req: Request) => {
     // 6) تحديث عدد المواد في جدول القوانين
     await supabase.rpc('refresh_law_articles_count', { p_law_id: law_id });
 
+    // 7) المعالجة اكتملت فعليًا هنا — المساعد القانوني يعتمد على بحث نصي
+    // (search_law_articles RPC) لا على embeddings، فلا داعٍ لانتظار أي
+    // خطوة لاحقة (embed-batch) قبل اعتبار القانون "مكتمل المعالجة".
+    // ملحوظة: embed-batch لسه موجودة وممكن تتفعّل مستقبلاً لو احتجنا بحث
+    // دلالي (semantic search) بجانب البحث النصي الحالي، لكنها خطوة اختيارية
+    // منفصلة ومش شرط لظهور القانون كمكتمل أو لعمل المساعد القانوني.
+    await supabase.from('laws')
+      .update({ status: 'completed', processing_error: null })
+      .eq('id', law_id);
+
     return new Response(
       JSON.stringify({ success: true, articles_count: articles.length }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
