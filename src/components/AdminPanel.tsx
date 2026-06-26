@@ -35,10 +35,10 @@ export default function AdminPanel({ db, profile, lawyers, clients, fetchLawyers
 
   // ─── Hooks ──────────────────────────────
   const users = useAdminUsers(db, fetchLawyers);
-  const sessions = useAdminSessions(db, section);
+  const sessions = useAdminSessions(db, section, profile);
   const activity = useAdminActivity(db);
   const backup = useAdminBackup(db);
-  const office = useAdminOffice(db);
+  const office = useAdminOffice(db, profile?.tenant_id ?? null);
   const library = useAdminLegalLibrary(db);
   const portal = useAdminPortal(db);
 
@@ -49,7 +49,7 @@ export default function AdminPanel({ db, profile, lawyers, clients, fetchLawyers
   const { backups, loadingBackups, creatingBackup, backupProgress, confirmRestore, setConfirmRestore, restoringBackup, fetchBackups, handleCreateBackup, handleDownloadBackup, handleRestoreBackup } = backup;
   const { officeSettings, setOfficeSettings, loadingOffice, savingOffice, logoFile, setLogoFile, logoPreview, setLogoPreview, fetchOfficeSettings, handleSaveOfficeSettings } = office;
   const { laws, legalCategories, loadingLaws, showLawModal, setShowLawModal, editingLaw, setEditingLaw, confirmDeleteLaw, setConfirmDeleteLaw, savingLaw, processingLaw, fetchLaws, fetchLegalCategories, handleSaveLaw, handleProcessLaw, handleDeleteLaw } = library;
-  const { portalAccess, portalClient, setPortalClient, clientSearch, setClientSearch, showAddPortalUser, setShowAddPortalUser, fetchPortalAccess, handleSavePortal } = portal;
+  const { portalAccess, portalClient, setPortalClient, clientSearch, setClientSearch, showAddPortalUser, setShowAddPortalUser, savingPortal, fetchPortalAccess, handleSavePortal } = portal;
 
   function detectDevice(ua) {
     const u = ua.toLowerCase();
@@ -1465,19 +1465,11 @@ export default function AdminPanel({ db, profile, lawyers, clients, fetchLawyers
                 // شريط التقدم أثناء المعالجة
                 processingLaw?.id === law.id && React.createElement('div',{className:"space-y-1.5"},
                   React.createElement('div',{className:"flex items-center justify-between text-[10px] text-slate-400"},
-                    React.createElement('span',null,
-                      processingLaw.stage === 'extracting'
-                        ? 'جاري استخراج المواد من الملف...'
-                        : `جاري توليد الفهرسة الدلالية... ${processingLaw.processed}/${processingLaw.total}`
-                    ),
+                    React.createElement('span',null, 'جاري استخراج المواد من الملف...'),
                     React.createElement(I.Spin)
                   ),
                   React.createElement('div',{className:"h-1.5 rounded-full bg-white/5 overflow-hidden"},
-                    React.createElement('div',{className:"h-full bg-teal-400 transition-all",style:{
-                      width: processingLaw.stage === 'extracting'
-                        ? '5%'
-                        : `${processingLaw.total ? Math.round((processingLaw.processed/processingLaw.total)*100) : 0}%`
-                    }})
+                    React.createElement('div',{className:"h-full bg-teal-400 animate-pulse",style:{width:'100%'}})
                   )
                 ),
 
@@ -1521,13 +1513,13 @@ export default function AdminPanel({ db, profile, lawyers, clients, fetchLawyers
     showAddPortalUser && React.createElement(AddPortalUserModal,{
       clients, portalAccess,
       onSave: async (data) => { await handleSavePortal(data); setShowAddPortalUser(false); },
-      onClose:()=>setShowAddPortalUser(false), saving
+      onClose:()=>setShowAddPortalUser(false), saving: savingPortal
     }),
 
     portalClient && React.createElement(ClientPortalModal,{
       client:portalClient, portalAccess,
       onSave:handleSavePortal,
-      onClose:()=>setPortalClient(null), saving
+      onClose:()=>setPortalClient(null), saving: savingPortal
     }),
 
     // مودال تغيير كلمة المرور
