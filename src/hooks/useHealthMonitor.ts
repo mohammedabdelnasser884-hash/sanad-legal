@@ -14,5 +14,5 @@ export function useHealthMonitor(_profile: any) {
         return () => window.removeEventListener(HEALTH_EVENT, refreshHealth);
     }, [refreshHealth]);
 
-    return { healthErrors, refreshHealth };
+    return { healthErrors, setHealthErrors, refreshHealth };
 }
