@@ -1,5 +1,10 @@
 import React from 'react';
 import { I, COUNTRY_CONFIGS } from '../../constants';
+import { PartiesLine } from '../shared';
+import { formatTime } from '../../systemHealth';
+
+const fmtDate = (d: Date) =>
+    d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 
 function DashboardTab({
   profile, cases, clients,
@@ -9,7 +14,8 @@ function DashboardTab({
   upcomingOpen, setUpcomingOpen,
   upcomingTasksOpen, setUpcomingTasksOpen,
   setSelectedCase, setShowCaseModal, setShowClientModal, setShowNewSessionModal,
-  setTab, setRemindersInitialFilter,
+  setTab, setRemindersInitialFilter, setSessionsInitialTab,
+  dbOnline, healthErrors, setHealthErrors,
 }: any) {
 
     const buildSessionCard = (s, linkedCase, linkedClient, accentColor, accentBg, accentBorder, badgeLabel=null, onClickOverride=null) => {
