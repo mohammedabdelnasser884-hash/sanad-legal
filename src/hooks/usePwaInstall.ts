@@ -6,7 +6,7 @@ export function usePwaInstall() {
     const [pwaInstalled, setPwaInstalled]     = useState(false);
 
     useEffect(()=>{
-        if(window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone){
+        if(window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone){
             setPwaInstalled(true);
         }
         const onInstallable = () => setPwaInstallable(true);
