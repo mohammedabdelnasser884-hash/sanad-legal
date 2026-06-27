@@ -34,7 +34,7 @@ export function useAdminBackup(db: any, profile?: any) {
     }
 
     setBackupProgress('جاري الحفظ...');
-    const totalRows = Object.values(snapshot.tables).reduce((s,t)=>s+(t as any[]).length,0);
+    const totalRows = Object.values(snapshot.tables).reduce((s: number, t: unknown)=>s+(t as any[]).length, 0);
     const sizeKb = Math.round(JSON.stringify(snapshot).length / 1024);
 
     const { error } = await db.from('backups').insert([{
