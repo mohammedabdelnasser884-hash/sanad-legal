@@ -2,9 +2,14 @@ import { useRef, useCallback, useEffect } from 'react';
 import { loadOfficeSetting } from '../constants';
 import { escapeTelegramHtml, toast } from '../utils';
 import { db } from '../supabaseClient';
+import { recordError, recordSuccess, getFailedServices, HEALTH_EVENT } from '../systemHealth';
 
 export function useTelegramAlerts(profile: any) {
     const tgRef = useRef({token:null, chat:null, loaded:false});
+
+    const refreshHealth = useCallback(() => {
+        window.dispatchEvent(new Event(HEALTH_EVENT));
+    }, []);
 
     const loadTgConfig = useCallback(async () => {
         if(tgRef.current.loaded) return;
