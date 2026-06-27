@@ -3,7 +3,7 @@ import { db } from '../../supabaseClient';
 import { toast, validateUploadFile, escapeHtml, escapeTelegramHtml, safeUpdate, logActivity } from '../../utils';
 import { loadOfficeSetting } from '../../constants';
 
-export function useCaseDetailActions(caseData: any, onUpdate: any, onDelete: any, onNotify: any, setShowStatusPicker?: (v: boolean) => void, client?: any) {
+export function useCaseDetailActions(caseData: any, onUpdate: any, onDelete: any, onNotify: any, setShowStatusPicker?: (v: boolean) => void, client?: any, profile?: any) {
   const [sessions, setSessions] = useState([]);
   const [notes, setNotes] = useState([]);
   const [docs, setDocs] = useState([]);
@@ -87,6 +87,7 @@ export function useCaseDetailActions(caseData: any, onUpdate: any, onDelete: any
             entity_type: 'document', details: `${caseData.title} — ${docLabel.trim() || pendingFile.name}`,
             case_name: caseData.title || null, case_type: caseData.type || null,
             client_name: client?.full_name || null,
+            userName: profile?.full_name || null,
         });
         setShowDocForm(false); setPendingFile(null); setDocLabel(''); setDocCategory('مذكرة دفاع');
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -109,6 +110,7 @@ export function useCaseDetailActions(caseData: any, onUpdate: any, onDelete: any
             entity_type: 'document', entity_id: doc.id, details: `${caseData.title} — ${doc.file_name}`,
             case_name: caseData.title || null, case_type: caseData.type || null,
             client_name: client?.full_name || null,
+            userName: profile?.full_name || null,
         });
         fetchSessions();
     };
@@ -306,6 +308,7 @@ export function useCaseDetailActions(caseData: any, onUpdate: any, onDelete: any
             entity_type: 'session', details: `${caseData.title} — ${sessionForm.date}`,
             case_name: caseData.title || null, case_type: caseData.type || null,
             client_name: client?.full_name || null,
+            userName: profile?.full_name || null,
         });
         if(onNotify){
             let msg=`📅 <b>جلسة جديدة</b>\n\n`;
@@ -338,6 +341,7 @@ export function useCaseDetailActions(caseData: any, onUpdate: any, onDelete: any
             entity_type: 'note', details: caseData.title || null,
             case_name: caseData.title || null, case_type: caseData.type || null,
             client_name: client?.full_name || null,
+            userName: profile?.full_name || null,
         });
         setNoteText('');
         setShowAddNote(false);
@@ -352,6 +356,7 @@ export function useCaseDetailActions(caseData: any, onUpdate: any, onDelete: any
             entity_type: 'note', entity_id: noteId, details: caseData.title || null,
             case_name: caseData.title || null, case_type: caseData.type || null,
             client_name: client?.full_name || null,
+            userName: profile?.full_name || null,
         });
         fetchSessions();
     };
@@ -367,6 +372,7 @@ export function useCaseDetailActions(caseData: any, onUpdate: any, onDelete: any
             entity_type: 'note', entity_id: noteId, details: caseData.title || null,
             case_name: caseData.title || null, case_type: caseData.type || null,
             client_name: client?.full_name || null,
+            userName: profile?.full_name || null,
         });
         fetchSessions();
     };
@@ -379,6 +385,7 @@ export function useCaseDetailActions(caseData: any, onUpdate: any, onDelete: any
             entity_type: 'session', entity_id: sessionId, details: caseData.title || null,
             case_name: caseData.title || null, case_type: caseData.type || null,
             client_name: client?.full_name || null,
+            userName: profile?.full_name || null,
         });
         fetchSessions();
     };
@@ -401,6 +408,7 @@ export function useCaseDetailActions(caseData: any, onUpdate: any, onDelete: any
             entity_type: 'session', entity_id: sessionId, details: `${caseData.title} — ${form.date}`,
             case_name: caseData.title || null, case_type: caseData.type || null,
             client_name: client?.full_name || null,
+            userName: profile?.full_name || null,
         });
         if(onNotify){
             let msg=`✏️ <b>تم تعديل جلسة</b>\n`;
@@ -429,6 +437,7 @@ export function useCaseDetailActions(caseData: any, onUpdate: any, onDelete: any
             entity_type: 'case', entity_id: caseData.id, details: `${caseData.title} — ${newStatus}`,
             case_name: caseData.title || null, case_type: caseData.type || null,
             client_name: client?.full_name || null,
+            userName: profile?.full_name || null,
         });
         onUpdate && onUpdate(newStatus);
     };
