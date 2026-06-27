@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { toast, safeUpdate } from '../utils';
+import { toast, safeUpdate, logActivity } from '../utils';
 import { recordError, recordSuccess } from '../systemHealth';
 import { Inp } from './shared';
 import DatePicker from './DatePicker';
@@ -45,6 +45,7 @@ function RemindersTab({initialFilter}){
             return;
         }
         toast('✅ تم إضافة التذكير');
+        logActivity(db, 'إضافة تذكير', { entity_type: 'reminder', details: form.title.trim() });
         setShowForm(false); setForm({title:'',due_date:'',notes:''});
         fetchReminders();
     };
@@ -67,6 +68,7 @@ function RemindersTab({initialFilter}){
             return;
         }
         toast('🗑 تم حذف التذكير');
+        logActivity(db, 'حذف تذكير', { entity_type: 'reminder', entity_id: id });
         fetchReminders();
     };
 
@@ -86,6 +88,7 @@ function RemindersTab({initialFilter}){
             return;
         }
         toast('✅ تم تعديل المهمة');
+        logActivity(db, 'تعديل تذكير', { entity_type: 'reminder', entity_id: editTarget?.id, details: editForm.title.trim() });
         setEditTarget(null);
         fetchReminders();
     };
