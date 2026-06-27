@@ -3,9 +3,10 @@ import { toast, escapeHtml } from '../utils';
 import { Inp, Sel } from './shared';
 import { createPortal } from 'react-dom';
 import { I, COUNTRY_CONFIGS, loadOfficeSetting, SanadMark } from '../constants';
+import { db } from '../supabaseClient';
 import { useFeesActions } from '../hooks/fees/useFeesActions';
 
-function FeesTab({db, cases, clients, showSummaryModal, setShowSummaryModal, country}){
+function FeesTab({cases, clients, showSummaryModal, setShowSummaryModal, country}){
     const {
       fees, payments, expandedPayments, setExpandedPayments,
       loading, showForm, setShowForm, form, setForm, saving, editId, setEditId,
@@ -16,7 +17,11 @@ function FeesTab({db, cases, clients, showSummaryModal, setShowSummaryModal, cou
       payClientNameText, setPayClientNameText, feesSearch, setFeesSearch,
       feesFilter, setFeesFilter,
       fetchFees, handleSave, handleAddPayment, handleDeletePayment, handleDelete,
-    } = useFeesActions(db, cases, clients, country);
+      // ── قيم محسوبة من الـ hook (مركزية — لا تُعاد هنا) ──
+      fmt, fmtDate,
+      feesByCategory, feesSections, feesAfterCategoryFilter, filteredFees,
+      grandTotal, grandPaid, grandRemaining,
+    } = useFeesActions(cases, clients, country);
 
     const [detailsFor, setDetailsFor] = useState(null); // معرف بطاقة الأتعاب المفتوحة تفاصيلها
     // ── عملة الدولة المختارة في الإعدادات (افتراضي جنيه مصري) ──
@@ -282,42 +287,7 @@ function FeesTab({db, cases, clients, showSummaryModal, setShowSummaryModal, cou
         writeAndPrint(w, html);
     };
 
-    // ── متغيرات محسوبة ──
-    const fmt = (n: any) => {
-        const num = parseFloat(n) || 0;
-        return num.toLocaleString('ar-EG', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-    };
-    const fmtDate = (d: any) => {
-        if (!d) return '—';
-        try { return new Date(d).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }); }
-        catch { return d; }
-    };
-    const grandTotal     = fees.reduce((s: number, f: any) => s + (f.total_fees || 0), 0);
-    const grandPaid      = fees.reduce((s: number, f: any) => s + (f.paid_fees  || 0), 0);
-    const grandRemaining = grandTotal - grandPaid;
-    const feesByCategory = {
-        collected: fees.filter((f: any) => f.total_fees > 0 && (f.paid_fees || 0) >= f.total_fees),
-        deferred:  fees.filter((f: any) => f.total_fees > 0 && (f.paid_fees || 0) <  f.total_fees),
-        open:      fees.filter((f: any) => !f.total_fees || f.total_fees <= 0),
-    };
-    const feesSections = [
-        { key: 'deferred',  label: 'مؤجلة',   icon: '⏳', emoji: '⏳', activeBg: 'bg-amber-500/15 text-amber-400',   activeText: 'text-amber-400',   countActiveBg: 'bg-amber-500/20 text-amber-300' },
-        { key: 'collected', label: 'محصّلة',  icon: '✅', emoji: '✅', activeBg: 'bg-emerald-500/15 text-emerald-400', activeText: 'text-emerald-400', countActiveBg: 'bg-emerald-500/20 text-emerald-300' },
-        { key: 'open',      label: 'مفتوحة',  icon: '⚠️', emoji: '⚠️', activeBg: 'bg-rose-500/15 text-rose-400',     activeText: 'text-rose-400',     countActiveBg: 'bg-rose-500/20 text-rose-300' },
-    ];
-    const feesAfterCategoryFilter = feesByCategory[feesFilter as 'collected'|'deferred'|'open'] || [];
-    const filteredFees = feesSearch.trim()
-        ? feesAfterCategoryFilter.filter((f: any) => {
-            const linkedCase   = cases.find((c: any) => c.id === f.case_id);
-            const linkedClient = linkedCase ? clients.find((cl: any) => cl.id === linkedCase.client_id) : null;
-            const search = feesSearch.trim().toLowerCase();
-            return (
-                (linkedCase?.title || '').toLowerCase().includes(search) ||
-                (f.client_name   || '').toLowerCase().includes(search) ||
-                (linkedClient?.full_name || '').toLowerCase().includes(search)
-            );
-          })
-        : feesAfterCategoryFilter;
+    // ── المتغيرات المحسوبة تأتي من useFeesActions مباشرة ──
 
     return React.createElement('div',{className:"space-y-4 fade-in"},
 
