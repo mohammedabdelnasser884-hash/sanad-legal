@@ -5,6 +5,8 @@ import { I } from '../../constants';
 import { exportSessionToGoogleCalendar } from '../shared';
 import { MONTHS_AR2, WEEK_LABELS, toDateStr } from './constants';
 import DayCard from './DayCard';
+import { getDayName } from './WeekDayRow';
+import MonthWeekView from './MonthWeekView';
 
 function MonthListTab({ cases, clients, onOpenCase, onOpenReminders }: any) {
     const today    = new Date();
