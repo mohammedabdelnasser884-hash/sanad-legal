@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { toast, escapeTelegramHtml } from '../utils';
+import { toast, escapeTelegramHtml, logActivity } from '../utils';
 import { db } from '../supabaseClient';
 import { Inp, Sel } from './shared';
 
