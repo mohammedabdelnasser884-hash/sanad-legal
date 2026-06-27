@@ -49,13 +49,13 @@ export default function AdminPanel({ profile, lawyers, clients, fetchLawyers }: 
   }, [section]);
 
   // ─── Hooks ──────────────────────────────
-  const users = useAdminUsers(fetchLawyers);
+  const users = useAdminUsers(fetchLawyers, profile);
   const sessions = useAdminSessions(section, profile);
   const activity = useAdminActivity();
   const backup = useAdminBackup(profile);
-  const office = useAdminOffice(profile?.tenant_id ?? null);
-  const library = useAdminLegalLibrary();
-  const portal = useAdminPortal();
+  const office = useAdminOffice(profile?.tenant_id ?? null, profile);
+  const library = useAdminLegalLibrary(profile);
+  const portal = useAdminPortal(profile);
 
   // ── destructure للـ render compatibility (نفس أسماء المتغيرات القديمة) ──
   const { editUser, setEditUser, showAddUser, setShowAddUser, saving, confirmDelete, setConfirmDelete, changePassUser, setChangePassUser, confirmSignOut, setConfirmSignOut, confirmLock, setConfirmLock, securityMsg, setSecurityMsg, handleEditUser, handleAddUser, handleDeleteUser, toggleUserActive, handleChangePassword, handleSignOutAllDevices, handleToggleLock } = users;
