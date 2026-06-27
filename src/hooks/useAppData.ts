@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { db } from '../supabaseClient';
 import { recordError, recordSuccess } from '../systemHealth';
 
