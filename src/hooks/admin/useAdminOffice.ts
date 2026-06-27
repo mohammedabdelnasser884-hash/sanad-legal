@@ -4,9 +4,20 @@ import { db } from '../../supabaseClient';
 
 export function useAdminOffice(tenantId: string | null, profile?: any) {
   const _userName = profile?.full_name || null;
+  // BUG FIX: الشكل القديم هنا كان فيه 6 حقول بس (officeName, officePhone...)
+  // بينما باقي الكود (AdminPanel.tsx + handleSaveOfficeSettings تحت) بيستخدم
+  // شكل تاني تمامًا (name, slogan, brandColor, taxNumber...) من نفس عملية
+  // إعادة تصميم إعدادات المكتب اللي ما خلصتش. ده اللي كان يفجّر الـ build.
   const [officeSettings, setOfficeSettings] = useState({
-    officeName: '', officePhone: '', officeEmail: '', officeAddress: '',
-    logoUrl: '', country: 'EG'
+    name: '', slogan: '', logoUrl: '',
+    brandColor: '#D4AF37', accentColor: '#1e3a5f',
+    phone: '', phone2: '', email: '', website: '', whatsapp: '',
+    address: '', city: '',
+    facebook: '', instagram: '',
+    taxNumber: '', licenseNumber: '',
+    bankName: '', bankIban: '',
+    invoicePrefix: 'INV-', invoiceFooter: '',
+    country: 'EG',
   });
   const [loadingOffice, setLoadingOffice] = useState(false);
   const [savingOffice, setSavingOffice] = useState(false);
@@ -19,8 +30,35 @@ export function useAdminOffice(tenantId: string | null, profile?: any) {
     try {
       const { data } = await db.from('office_settings').select('*').eq('tenant_id', tenantId).limit(1).maybeSingle();
       if (data) {
-        setOfficeSettings(s => ({ ...s, ...data }));
-        if (data.logoUrl) setLogoPreview(data.logoUrl);
+        // BUG FIX: كان بيعمل { ...s, ...data } مباشرة، وده بيحقن أعمدة الداتابيز
+        // بأسماء snake_case (brand_color, tax_number...) جوه الـ state، بينما
+        // الفورم كله بيقرا بأسماء camelCase (brandColor, taxNumber...) — يعني
+        // الإعدادات المحفوظة كانت تفضل ما تطلعش في الفورم بعد إعادة فتح الصفحة.
+        setOfficeSettings(s => ({
+          ...s,
+          name:           data.name           ?? s.name,
+          slogan:         data.slogan         ?? s.slogan,
+          logoUrl:        data.logo_url       ?? s.logoUrl,
+          brandColor:     data.brand_color    ?? s.brandColor,
+          accentColor:    data.accent_color   ?? s.accentColor,
+          phone:          data.phone          ?? s.phone,
+          phone2:         data.phone2         ?? s.phone2,
+          email:          data.email          ?? s.email,
+          website:        data.website        ?? s.website,
+          whatsapp:       data.whatsapp       ?? s.whatsapp,
+          address:        data.address        ?? s.address,
+          city:           data.city           ?? s.city,
+          facebook:       data.facebook       ?? s.facebook,
+          instagram:      data.instagram      ?? s.instagram,
+          taxNumber:      data.tax_number     ?? s.taxNumber,
+          licenseNumber:  data.license_number ?? s.licenseNumber,
+          bankName:       data.bank_name      ?? s.bankName,
+          bankIban:       data.bank_iban      ?? s.bankIban,
+          invoicePrefix:  data.invoice_prefix ?? s.invoicePrefix,
+          invoiceFooter:  data.invoice_footer ?? s.invoiceFooter,
+          country:        data.country        ?? s.country,
+        }));
+        if (data.logo_url) setLogoPreview(data.logo_url);
       }
     } catch(e) { /* الجدول غير موجود بعد */ }
     setLoadingOffice(false);
