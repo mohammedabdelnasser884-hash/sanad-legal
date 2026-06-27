@@ -26,8 +26,8 @@ function FeesTab({db, cases, clients, showSummaryModal, setShowSummaryModal, cou
     const genInvoiceNumber = (allPayments, paymentId) => {
         // جمع كل الدفعات مرتبة بالتاريخ
         const allPays = [];
-        Object.values(allPayments).forEach(arr => arr.forEach(p => allPays.push(p)));
-        allPays.sort((a,b)=> new Date(a.payment_date||a.created_at) - new Date(b.payment_date||b.created_at));
+        (Object.values(allPayments) as any[]).forEach(arr => (arr as any[]).forEach((p:any) => allPays.push(p)));
+        allPays.sort((a:any,b:any)=> new Date(a.payment_date||a.created_at).getTime() - new Date(b.payment_date||b.created_at).getTime());
         const idx = allPays.findIndex(p=>p.id===paymentId);
         const num = idx>=0 ? idx+1 : allPays.length+1;
         const year = new Date().getFullYear();
@@ -281,6 +281,43 @@ function FeesTab({db, cases, clients, showSummaryModal, setShowSummaryModal, cou
             +'</body></html>';
         writeAndPrint(w, html);
     };
+
+    // ── متغيرات محسوبة ──
+    const fmt = (n: any) => {
+        const num = parseFloat(n) || 0;
+        return num.toLocaleString('ar-EG', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    };
+    const fmtDate = (d: any) => {
+        if (!d) return '—';
+        try { return new Date(d).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }); }
+        catch { return d; }
+    };
+    const grandTotal     = fees.reduce((s: number, f: any) => s + (f.total_fees || 0), 0);
+    const grandPaid      = fees.reduce((s: number, f: any) => s + (f.paid_fees  || 0), 0);
+    const grandRemaining = grandTotal - grandPaid;
+    const feesByCategory = {
+        collected: fees.filter((f: any) => f.total_fees > 0 && (f.paid_fees || 0) >= f.total_fees),
+        deferred:  fees.filter((f: any) => f.total_fees > 0 && (f.paid_fees || 0) <  f.total_fees),
+        open:      fees.filter((f: any) => !f.total_fees || f.total_fees <= 0),
+    };
+    const feesSections = [
+        { key: 'deferred',  label: 'مؤجلة',   icon: '⏳', emoji: '⏳', activeBg: 'bg-amber-500/15 text-amber-400',   activeText: 'text-amber-400',   countActiveBg: 'bg-amber-500/20 text-amber-300' },
+        { key: 'collected', label: 'محصّلة',  icon: '✅', emoji: '✅', activeBg: 'bg-emerald-500/15 text-emerald-400', activeText: 'text-emerald-400', countActiveBg: 'bg-emerald-500/20 text-emerald-300' },
+        { key: 'open',      label: 'مفتوحة',  icon: '⚠️', emoji: '⚠️', activeBg: 'bg-rose-500/15 text-rose-400',     activeText: 'text-rose-400',     countActiveBg: 'bg-rose-500/20 text-rose-300' },
+    ];
+    const feesAfterCategoryFilter = feesByCategory[feesFilter as 'collected'|'deferred'|'open'] || [];
+    const filteredFees = feesSearch.trim()
+        ? feesAfterCategoryFilter.filter((f: any) => {
+            const linkedCase   = cases.find((c: any) => c.id === f.case_id);
+            const linkedClient = linkedCase ? clients.find((cl: any) => cl.id === linkedCase.client_id) : null;
+            const search = feesSearch.trim().toLowerCase();
+            return (
+                (linkedCase?.title || '').toLowerCase().includes(search) ||
+                (f.client_name   || '').toLowerCase().includes(search) ||
+                (linkedClient?.full_name || '').toLowerCase().includes(search)
+            );
+          })
+        : feesAfterCategoryFilter;
 
     return React.createElement('div',{className:"space-y-4 fade-in"},
 
