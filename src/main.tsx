@@ -17,7 +17,7 @@ declare global {
   interface Window {
     __swReady: boolean;
     __swRegistration: ServiceWorkerRegistration | null;
-    __offlineEnqueue: (op: object) => Promise<void>;
+    __offlineEnqueue: (op: object) => Promise<boolean>;
     __getOfflineQueue: () => Promise<any[]>;
     __getOfflineQueueCount: () => Promise<number>;
     __deleteOfflineItem: (id: number) => Promise<void>;
@@ -66,7 +66,7 @@ function openOfflineDB(): Promise<IDBDatabase> {
     });
 }
 
-window.__offlineEnqueue = async (operation: object) => {
+window.__offlineEnqueue = async (operation: object): Promise<boolean> => {
     try {
         const db    = await openOfflineDB();
         const tx    = db.transaction(STORE_NAME, 'readwrite');
@@ -74,8 +74,11 @@ window.__offlineEnqueue = async (operation: object) => {
         store.add({ ...operation, timestamp: Date.now(), status: 'pending' });
         await new Promise<void>((res, rej) => { tx.oncomplete = () => res(); tx.onerror = rej; });
     } catch (err) {
-        console.error('[Offline] Failed to enqueue:', err);
-        return;
+        // BUG FIX: ده كان بيفشل بصمت من قبل — والـ caller كان يفتكر إن الحفظ
+        // المحلي تم بنجاح وهو فعليًا لسه متضايع. دلوقتي بنرجّع false عشان
+        // __dbWrite يقدر يبلّغ المستخدم إن الحفظ فشل فعلاً.
+        console.error('[Offline] Failed to enqueue — data NOT saved locally:', err);
+        return false;
     }
     // طبقة إضافية: نسجّل Background Sync لو المتصفح بيدعمها (Chrome/Android).
     // ده تحسين فوقي بس — مش الاعتماد الأساسي، لأن Safari/iOS مابيدعمهاش أصلاً.
@@ -88,6 +91,7 @@ window.__offlineEnqueue = async (operation: object) => {
     } catch (err) {
         // طبيعي إن ده يفشل على متصفحات مش داعمة — متجاهلين
     }
+    return true;
 };
 
 window.__getOfflineQueue = async () => {
@@ -223,7 +227,15 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {err: E
 // ══════════════════════════════════════════════════════════
 //  Offline Sync Queue — DB Write Wrapper
 // ══════════════════════════════════════════════════════════
+let __syncQueueRunning = false;
 window.__syncOfflineQueue = async function() {
+    // BUG FIX: القفل ده كان موجود فقط في __runOfflineSyncIfNeeded، لكن
+    // Service Worker بينده على __syncOfflineQueue مباشرة عند Background Sync
+    // (تحت)، فكان ممكن العمليتين تتنفذوا في نفس الوقت وتعمل INSERT مكرر
+    // لنفس القضية. دلوقتي القفل بقى جوه الدالة نفسها فيغطي كل المصادر.
+    if (__syncQueueRunning) return;
+    __syncQueueRunning = true;
+    try {
     const queue = await window.__getOfflineQueue?.() || [];
     if (queue.length === 0) return;
     showSyncIndicator(`جاري مزامنة ${queue.length} عملية...`);
@@ -282,9 +294,16 @@ window.__syncOfflineQueue = async function() {
                 await window.__deleteOfflineItem(op.id);
                 successCount++;
             } else {
+                // BUG FIX: كان بيتجاهل تفاصيل الخطأ تمامًا، فمستحيل تعرف ليه
+                // عملية معينة فاضلة عالقة في الـ queue ومش بتتزامن أبدًا
+                // (مثلاً قيمة مفقودة مطلوبة، أو RLS بترفض الإدراج).
+                console.error('[Offline Sync] فشلت عملية', op.type, op.table, '—', error?.message || error);
                 failCount++;
             }
-        } catch { failCount++; }
+        } catch (err) {
+            console.error('[Offline Sync] استثناء غير متوقع في عملية', op.type, op.table, '—', err);
+            failCount++;
+        }
     }
     if (successCount > 0 && failCount === 0) {
         hideSyncIndicator(`✅ تمت المزامنة — ${successCount} عملية`);
@@ -293,6 +312,9 @@ window.__syncOfflineQueue = async function() {
         hideSyncIndicator(`⚠️ تمت جزئياً (${successCount}/${successCount + failCount})`);
     } else { hideSyncIndicator(); }
     window.dispatchEvent(new CustomEvent('offline-sync-complete'));
+    } finally {
+        __syncQueueRunning = false;
+    }
 };
 
 // ══════════════════════════════════════════════════════════
@@ -352,12 +374,25 @@ setInterval(() => { __runOfflineSyncIfNeeded(); }, 60000);
             }
             return { error, offline: false };
         } catch {
-            await window.__offlineEnqueue({ type, table, data, id, knownUpdatedAt });
+            // الشبكة بتقول أونلاين بس الطلب فشل فعليًا — نحاول نحفظ محليًا
+            const saved = await window.__offlineEnqueue({ type, table, data, id, knownUpdatedAt });
+            if (!saved) {
+                // BUG FIX: قبل كان بيرجع queued:true دايمًا حتى لو فشل الحفظ في
+                // IndexedDB، فالمستخدم يشوف "محفوظة محلياً" والبيانات ضايعة فعليًا.
+                return { error: { message: 'فشل الاتصال بالسيرفر، وفشل الحفظ المحلي أيضاً — يرجى المحاولة مرة أخرى' }, offline: true, queued: false };
+            }
             return { error: null, offline: true, queued: true };
         }
     } else {
         // نحفظ knownUpdatedAt في الـ Queue عشان نستخدمه وقت المزامنة
-        await window.__offlineEnqueue({ type, table, data, id, knownUpdatedAt });
+        const saved = await window.__offlineEnqueue({ type, table, data, id, knownUpdatedAt });
+        if (!saved) {
+            // BUG FIX: نفس المشكلة — هنا كانت أوضح، لأن المستخدم فعليًا offline
+            // وملوش طريقة تانية يحفظ بيها، فلو IndexedDB فشلت (مساحة تخزين ممتلئة،
+            // متصفح Private/Incognito، أو خطأ غير متوقع) كانت البيانات تتفقد بصمت
+            // والمستخدم يفتكر إنها "محفوظة محلياً" زي ما الرسالة كانت بتقوله.
+            return { error: { message: 'فشل الحفظ محلياً — تأكد من توفر مساحة تخزين كافية في المتصفح، أو إنك مش في وضع التصفح الخفي (Private/Incognito)' }, offline: true, queued: false };
+        }
         const count = await window.__getOfflineQueueCount?.() || 0;
         showOfflineBanner(count);
         return { error: null, offline: true, queued: true };
