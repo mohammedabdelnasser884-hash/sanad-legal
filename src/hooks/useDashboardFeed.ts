@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '../supabaseClient';
 
 export function useDashboardFeed(profile: any) {
