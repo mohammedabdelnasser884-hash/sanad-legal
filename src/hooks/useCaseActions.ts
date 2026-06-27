@@ -1,7 +1,7 @@
-import { toast, escapeTelegramHtml } from '../utils';
+import { toast, escapeTelegramHtml, logActivity } from '../utils';
+import { db } from '../supabaseClient';
 
 export function useCaseActions(params: {
-    db: any;
     sendTelegram: any;
     fetchCases: any;
     cases: any[];
@@ -19,16 +19,20 @@ export function useCaseActions(params: {
     setShowCaseModal: any;
     casesFilter: any;
     nav: any;
+    profile?: any;
 }) {
     const {
-        db, sendTelegram, fetchCases, cases, selectedCase,
+        sendTelegram, fetchCases, cases, clients, selectedCase,
         setCases, setLawyers, setClients, setProfile, setAuthUser,
         setSelectedCase, setDeleteConfirm, setSavingCase, setShowCaseModal,
-        casesFilter, nav,
+        casesFilter, nav, profile,
     } = params;
+    const _userName = profile?.full_name || null;
 
     // ─ تسجيل خروج ─
     const handleLogout = async () => {
+        // نسجّل الخروج قبل signOut عشان الـ session لسه شغّالة
+        logActivity(db, 'تسجيل خروج', { userName: _userName, entity_type: 'user', details: profile?.email || null });
         await db.auth.signOut();
         setCases([]); setLawyers([]); setClients([]); setProfile(null); setAuthUser(null);
     };
@@ -52,12 +56,32 @@ export function useCaseActions(params: {
             secretary_hall: form.secretary_hall || null,
             secretary_name: form.secretary_name || null,
         };
+        const offlineId = 'offline-' + Date.now();
         const { error, offline, queued } = await window.__dbWrite({
             type: 'INSERT', table: 'cases', data: payload, returning: true
         });
         if (offline && queued) {
+            // BUG-20 FIX: لو فيه تاريخ جلسة، نحفظها في الـ queue مع _offlineCaseTitle
+            // عشان الـ sync handler يقدر يربطها بالـ id الحقيقي بعد ما القضية تتزامن
+            if (form.date) {
+                await window.__dbWrite({
+                    type: 'INSERT',
+                    table: 'case_sessions',
+                    data: {
+                        _offlineCaseTitle: form.title,   // الـ sync handler هيستخدمه
+                        case_id: null,                   // هيتملى وقت المزامنة
+                        session_date: form.date,
+                        session_time: form.session_time || 'صباحي',
+                        session_floor: form.court_floor || null,
+                        session_hall: form.court_hall || null,
+                        description: 'الجلسة الأولى',
+                        result: null,
+                        next_action: null,
+                    },
+                });
+            }
             toast('📥 محفوظة محلياً — ستُضاف فور عودة الإنترنت');
-            setCases((prev: any[]) => [{ ...payload, id: 'offline-' + Date.now(), ...form, status: 'نشطة', date: form.date || '—' }, ...prev]);
+            setCases((prev: any[]) => [{ ...payload, id: offlineId, ...form, status: 'نشطة', date: form.date || '—' }, ...prev]);
         } else if (error) {
             toast('❌ فشل الحفظ، يرجى المحاولة مرة أخرى', true);
             setSavingCase(false);
@@ -92,6 +116,14 @@ export function useCaseActions(params: {
             const caseNumLabel = form.caseNum && form.caseYear
                 ? `${form.caseNum} لسنة ${form.caseYear}`
                 : (form.number || '—');
+            logActivity(db, 'إضافة قضية', {
+                userName: _userName,
+                entity_type: 'case', entity_id: newCaseId,
+                details: `${form.title} — رقم القيد: ${caseNumLabel}`,
+                case_name: form.title || null,
+                case_type: form.type || null,
+                client_name: clients.find((cl: any) => cl.id === form.client_id)?.full_name || null,
+            });
             let caseMsg = `⚖️ <b>قضية جديدة تم تقييدها</b>\n`;
             caseMsg += `━━━━━━━━━━━━━━━━━━━━\n`;
             caseMsg += `📋 <b>رقم القيد:</b> ${escapeTelegramHtml(caseNumLabel)}\n`;
@@ -121,6 +153,13 @@ export function useCaseActions(params: {
                 nav.closeModal('delete'); setDeleteConfirm(null);
                 if (error) { toast('❌ فشل الحذف، يرجى المحاولة مرة أخرى', true); return; }
                 toast('🗑 تم حذف القضية نهائياً');
+                logActivity(db, 'حذف قضية', {
+                    userName: _userName,
+                    entity_type: 'case', entity_id: caseId, details: c?.title || null,
+                    case_name: c?.title || null,
+                    case_type: c?.type || null,
+                    client_name: clients.find((cl: any) => cl.id === c?.client_id)?.full_name || null,
+                });
                 setSelectedCase(null);
                 setCases((prev: any[]) => prev.filter((c: any) => c.id !== caseId));
             }
@@ -182,6 +221,13 @@ export function useCaseActions(params: {
                     }
                 }
                 toast('✅ تم تحديث القضية');
+                logActivity(db, 'تعديل قضية', {
+                    userName: _userName,
+                    entity_type: 'case', entity_id: caseId, details: form.title || null,
+                    case_name: form.title || null,
+                    case_type: form.type || cases.find((c: any) => c.id === caseId)?.type || null,
+                    client_name: clients.find((cl: any) => cl.id === payload.client_id)?.full_name || null,
+                });
                 // تحديث فوري للحالة المحلية — عشان الشاشة المفتوحة (CaseDetailView) تعرض القيم الجديدة فورًا
                 setCases((prev: any[]) => prev.map((c: any) => c.id === caseId ? { ...c, ...form } : c));
                 if (selectedCase?.id === caseId) setSelectedCase((p: any) => ({ ...p, ...form }));
