@@ -103,6 +103,7 @@ function App() {
 
     // ── Local UI state ────────────────────────────────────────
     const [showMore,       setShowMore]       = useState(false);
+    const [showHeaderMenu, setShowHeaderMenu] = useState(false);
     const [showFeesSummary,setShowFeesSummary]= useState(false);
     const [clientSearch,   setClientSearch]   = useState('');
     const [savingCase,     setSavingCase]     = useState(false);
@@ -264,7 +265,7 @@ function App() {
     // ─────────────────────────────────────────────────────────
     //  Render
     // ─────────────────────────────────────────────────────────
-    const Header      = React.createElement(AppHeader, { profile, setShowMenu: (v: boolean) => setShowMore(v), setShowSearch, isAdmin, fetchCases, casesFilter, loadingCases: casesLoading });
+    const Header      = React.createElement(AppHeader, { profile, setShowMenu: (v: boolean) => setShowHeaderMenu(v), setShowSearch, isAdmin, fetchCases, casesFilter, loadingCases: casesLoading });
     const Dashboard   = React.createElement(DashboardTab, {
         profile, cases, clients,
         todaySessions, upcomingSessions, missedSessions,
@@ -288,7 +289,7 @@ function App() {
     });
     const DocsTab = React.createElement(ArchiveTab, { db, cases, clients });
 
-    const [showMenu, setShowMenu_local] = [showMore, setShowMore];
+    const showMenu = showHeaderMenu;
 
     return React.createElement('div', { className: 'h-full flex flex-col bg-premium-bg' },
 
@@ -300,7 +301,7 @@ function App() {
         showMenu && createPortal(
             React.createElement(React.Fragment, null,
                 React.createElement('div', {
-                    onClick: () => setShowMore(false),
+                    onClick: () => setShowHeaderMenu(false),
                     className: 'fixed inset-0 cursor-default',
                     style: { zIndex: 9998, background: 'rgba(0,0,0,0.6)' }
                 }),
@@ -309,7 +310,7 @@ function App() {
                     style: { top: '52px', zIndex: 9999, background: darkMode ? '#0d1a2e' : '#ffffff' }
                 },
                     React.createElement('button', {
-                        onClick: () => { toggleTheme(); setShowMore(false); },
+                        onClick: () => { toggleTheme(); setShowHeaderMenu(false); },
                         className: 'w-full h-10 rounded-xl flex items-center gap-3 px-3 active:scale-[0.98] transition-all text-sm font-bold',
                         style: darkMode
                             ? { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', color: '#E8C84A' }
@@ -327,18 +328,18 @@ function App() {
                             } else {
                                 Notification.requestPermission().then(p => { if (p === 'granted') toast('✅ تفعّلت الإشعارات'); });
                             }
-                            setShowMore(false);
+                            setShowHeaderMenu(false);
                         },
                         className: 'w-full h-10 rounded-xl border flex items-center gap-3 px-3 active:scale-[0.98] transition-all text-sm font-bold',
                         style: { background: 'rgba(251,191,36,0.10)', borderColor: 'rgba(251,191,36,0.30)', color: '#fbbf24' }
                     }, React.createElement('span', { className: 'text-base' }, '🔔'), React.createElement('span', null, 'تفعيل إشعارات الجلسات')),
                     React.createElement('button', {
-                        onClick: () => { handlePwaInstall(); setShowMore(false); },
+                        onClick: () => { handlePwaInstall(); setShowHeaderMenu(false); },
                         className: 'w-full h-10 rounded-xl border flex items-center gap-3 px-3 active:scale-[0.98] transition-all text-sm font-bold',
                         style: { background: 'rgba(212,175,55,0.12)', borderColor: 'rgba(212,175,55,0.35)', color: '#D4AF37' }
                     }, React.createElement('span', { className: 'text-base' }, '📲'), React.createElement('span', null, 'تثبيت التطبيق')),
                     React.createElement('button', {
-                        onClick: () => { setShowSettings(true); setShowMore(false); },
+                        onClick: () => { setShowSettings(true); setShowHeaderMenu(false); },
                         className: 'w-full h-10 rounded-xl bg-white/5 border border-white/10 flex items-center gap-3 px-3 active:scale-[0.98] transition-transform text-sm font-bold text-slate-200'
                     },
                         React.createElement('span', { className: 'text-base' }, COUNTRY_CONFIGS[country]?.flag || '🌍'),
@@ -346,7 +347,7 @@ function App() {
                     ),
                     React.createElement('div', { className: 'h-px bg-white/10 my-0.5' }),
                     React.createElement('button', {
-                        onClick: () => { handleLogout(); setShowMore(false); },
+                        onClick: () => { handleLogout(); setShowHeaderMenu(false); },
                         className: 'w-full h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center gap-3 px-3 active:scale-[0.98] transition-transform text-sm font-bold text-rose-400'
                     }, React.createElement(I.Logout), React.createElement('span', null, 'تسجيل الخروج'))
                 )
