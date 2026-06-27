@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { I } from '../../../constants';
 
 function ClientPortalModal({ client, portalAccess, onSave, onClose, saving }) {
   const existing = portalAccess.find(p=>p.client_id===client.id);
