@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { db } from '../supabaseClient';
-import { toast } from '../utils';
+import { toast, logActivity } from '../utils';
 
 export function useAutoLogout(
   profile: any,
@@ -13,6 +13,7 @@ export function useAutoLogout(
     const resetTimer = () => {
       clearTimeout(timer);
       timer = setTimeout(async () => {
+        logActivity(db, 'تسجيل خروج تلقائي', { entity_type: 'user', details: 'خروج تلقائي بعد 30 دقيقة عدم نشاط' });
         await db.auth.signOut();
         onLogout();
         toast('⏱ تم تسجيل الخروج تلقائياً بسبب عدم النشاط', true);
