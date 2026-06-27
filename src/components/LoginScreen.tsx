@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { db } from '../supabaseClient';
+import { logActivity } from '../utils';
 import { I, COUNTRY_CONFIGS, SanadMark } from '../constants';
 
 import { Inp } from './shared';
@@ -19,6 +20,7 @@ function LoginScreen({onLogin}){
         const {data,error}=await db.auth.signInWithPassword({email,password:pass});
         setLoading(false);
         if(error){setErr('بيانات الدخول غير صحيحة. تحقق من الإيميل وكلمة السر.');return;}
+        logActivity(db, 'تسجيل دخول', { entity_type: 'user', entity_id: data.user?.id, details: data.user?.email || null });
         onLogin(data.user);
     };
 
