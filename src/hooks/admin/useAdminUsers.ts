@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { toast, logActivity } from '../../utils';
 import { callAdminAction, db } from '../../supabaseClient';
 
-export function useAdminUsers(fetchLawyers: () => void) {
+export function useAdminUsers(fetchLawyers: () => void, profile?: any) {
+  const _userName = profile?.full_name || null;
   const [editUser, setEditUser] = useState(null);
   const [showAddUser, setShowAddUser] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -23,7 +24,7 @@ export function useAdminUsers(fetchLawyers: () => void) {
     setSaving(false);
     if (error) { toast('❌ فشل الحفظ، يرجى المحاولة مرة أخرى', true); return; }
     toast('✅ تم تحديث بيانات المستخدم');
-    logActivity(db, 'تعديل مستخدم', { entity_type: 'user', entity_id: editUser.id, details: form.full_name || null });
+    logActivity(db, 'تعديل مستخدم', { userName: _userName, entity_type: 'user', entity_id: editUser.id, details: form.full_name || null });
     setEditUser(null);
     fetchLawyers();
   };
@@ -41,7 +42,7 @@ export function useAdminUsers(fetchLawyers: () => void) {
         permissions: form.permissions,
       });
       toast('✅ تم إنشاء حساب ' + form.full_name);
-      logActivity(db, 'إضافة مستخدم', { entity_type: 'user', details: `${form.full_name} (${form.role || '—'})` });
+      logActivity(db, 'إضافة مستخدم', { userName: _userName, entity_type: 'user', details: `${form.full_name} (${form.role || '—'})` });
       setShowAddUser(false);
       fetchLawyers();
     } catch (e) {
@@ -57,7 +58,7 @@ export function useAdminUsers(fetchLawyers: () => void) {
     setSaving(false);
     if (error) { toast('❌ حدث خطأ، يرجى المحاولة مرة أخرى', true); return; }
     toast('✅ تم حذف المستخدم');
-    logActivity(db, 'حذف مستخدم', { entity_type: 'user', entity_id: user.id, details: user.full_name || null });
+    logActivity(db, 'حذف مستخدم', { userName: _userName, entity_type: 'user', entity_id: user.id, details: user.full_name || null });
     setConfirmDelete(null);
     fetchLawyers();
   };
@@ -73,7 +74,7 @@ export function useAdminUsers(fetchLawyers: () => void) {
     }
 
     toast(newState ? '✅ تم تفعيل الحساب' : '⚠️ تم تعطيل الحساب وإنهاء جلساته');
-    logActivity(db, newState ? 'تفعيل مستخدم' : 'تعطيل مستخدم', { entity_type: 'user', entity_id: user.id, details: user.full_name || null });
+    logActivity(db, newState ? 'تفعيل مستخدم' : 'تعطيل مستخدم', { userName: _userName, entity_type: 'user', entity_id: user.id, details: user.full_name || null });
     fetchLawyers();
   };
 
@@ -88,7 +89,7 @@ export function useAdminUsers(fetchLawyers: () => void) {
         force_change: forceChange,
       });
       toast('✅ تم تحديث كلمة المرور بنجاح');
-      logActivity(db, 'تغيير كلمة مرور مستخدم', { entity_type: 'user', entity_id: userId });
+      logActivity(db, 'تغيير كلمة مرور مستخدم', { userName: _userName, entity_type: 'user', entity_id: userId });
       setChangePassUser(null);
     } catch(e) {
       toast('❌ فشل تحديث كلمة المرور', true);
@@ -105,7 +106,7 @@ export function useAdminUsers(fetchLawyers: () => void) {
         user_id: user.user_id || user.id,
       });
       toast('✅ تم تسجيل خروج '+user.full_name+' من جميع الأجهزة');
-      logActivity(db, 'تسجيل خروج قسري', { entity_type: 'user', entity_id: user.user_id || user.id, details: user.full_name || null });
+      logActivity(db, 'تسجيل خروج قسري', { userName: _userName, entity_type: 'user', entity_id: user.user_id || user.id, details: user.full_name || null });
       setConfirmSignOut(null);
     } catch(e) {
       toast('❌ فشل تسجيل الخروج', true);
@@ -124,7 +125,7 @@ export function useAdminUsers(fetchLawyers: () => void) {
     setSaving(false);
     if (error) { toast('❌ حدث خطأ، يرجى المحاولة مرة أخرى', true); return; }
     toast(isLocked ? '🔓 تم فتح الحساب' : '🔒 تم قفل الحساب');
-    logActivity(db, isLocked ? 'فتح حساب' : 'قفل حساب', { entity_type: 'user', entity_id: user.id, details: user.full_name || null });
+    logActivity(db, isLocked ? 'فتح حساب' : 'قفل حساب', { userName: _userName, entity_type: 'user', entity_id: user.id, details: user.full_name || null });
     setConfirmLock(null);
     fetchLawyers();
   };
