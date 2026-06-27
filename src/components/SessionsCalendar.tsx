@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { I } from '../constants';
 import { toDateStr } from './sessions-calendar/constants';
 import WeekTab from './sessions-calendar/WeekTab';
@@ -12,9 +12,9 @@ function SessionsCalendar({ cases, clients, onOpenCase, onOpenReminders, initial
     const [missedCount, setMissedCount] = useState(0);
 
     // جلب عدد الفائتة لعرضه على الـ badge
-    useEffect(() => {
+    const fetchMissedCount = useCallback(async () => {
         const todayStr = toDateStr(new Date());
-        Promise.all([
+        const [sessCnt, taskCnt] = await Promise.all([
             db.from('case_sessions')
               .select('id,result,next_action')
               .lt('session_date', todayStr)
@@ -24,10 +24,29 @@ function SessionsCalendar({ cases, clients, onOpenCase, onOpenReminders, initial
               .eq('done', false)
               .lt('due_date', todayStr)
               .then(({ data }: any) => (data || []).length)
-        ]).then(([sessCnt, taskCnt]: any) => {
-            setMissedCount(sessCnt + taskCnt);
-        });
+        ]);
+        setMissedCount(sessCnt + taskCnt);
     }, []);
+
+    useEffect(() => {
+        fetchMissedCount();
+
+        // Realtime: أي تغيير في الجلسات أو التذكيرات يحدّث الـ badge فوراً
+        const sessionsSub = db
+            .channel('missed-badge-sessions')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'case_sessions' }, fetchMissedCount)
+            .subscribe();
+
+        const remindersSub = db
+            .channel('missed-badge-reminders')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'reminders' }, fetchMissedCount)
+            .subscribe();
+
+        return () => {
+            db.removeChannel(sessionsSub);
+            db.removeChannel(remindersSub);
+        };
+    }, [fetchMissedCount]);
 
     const tabs = [
         { id: 'week',     label: 'الأسبوع', emoji: '📆' },
