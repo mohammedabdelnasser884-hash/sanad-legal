@@ -1,7 +1,8 @@
 import React, { useState, useCallback } from 'react';
-import { toast } from '../../utils';
+import { toast, logActivity } from '../../utils';
+import { db } from '../../supabaseClient';
 
-export function useAdminPortal(db: any) {
+export function useAdminPortal() {
   const [portalAccess, setPortalAccess] = useState([]);
   const [portalClient, setPortalClient] = useState(null);
   const [clientSearch, setClientSearch] = useState('');
@@ -26,6 +27,11 @@ export function useAdminPortal(db: any) {
     setSaving(false);
     if (error) { toast('❌ حدث خطأ، يرجى المحاولة مرة أخرى', true); return; }
     toast('✅ تم حفظ إعدادات بوابة ' + data.client_name);
+    logActivity(db, 'حفظ بوابة موكل', {
+        entity_type: 'portal', entity_id: data.client_id,
+        details: `${data.client_name} — ${data.is_active ? 'مفعّلة' : 'معطّلة'}`,
+        client_name: data.client_name || null,
+    });
     setPortalClient(null);
     fetchPortalAccess();
   };
