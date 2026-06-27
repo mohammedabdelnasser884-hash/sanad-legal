@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { toast, escapeHtml, safeUpdate } from '../../utils';
+import React, { useState, useEffect, useCallback } from 'react';
+import { toast, escapeHtml, safeUpdate, logActivity } from '../../utils';
 import { COUNTRY_CONFIGS } from '../../constants';
+import { db } from '../../supabaseClient';
 
-export function useFeesActions(db: any, cases: any[], clients: any[], country?: string) {
+export function useFeesActions(cases: any[], clients: any[], country?: string) {
     const [fees, setFees] = useState([]);
     const [payments, setPayments] = useState({}); // keyed by fee_id
     const [expandedPayments, setExpandedPayments] = useState({});
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
-    const [form, setForm] = useState({case_id:'', client_name_manual:'', receiver:'', total:'', paid:'', payment_date:'', notes:''});
+    const [form, setForm] = useState({case_id:'', client_name_manual:'', client_name_text:'', receiver:'', total:'', paid:'', payment_date:'', notes:''});
     const [saving, setSaving] = useState(false);
     const [editId, setEditId] = useState(null);
     const [addPaymentFor, setAddPaymentFor] = useState(null);
@@ -27,7 +28,7 @@ export function useFeesActions(db: any, cases: any[], clients: any[], country?: 
     // ── عملة الدولة المختارة (تُستخدم في رسائل التنبيه فقط؛ الطباعة في FeesTab.tsx) ──
     const currency = COUNTRY_CONFIGS[country||'EG']?.currency || 'جنيه مصري';
 
-    const fetchFees = async () => {
+    const fetchFees = useCallback(async () => {
         setLoading(true);
         const {data} = await db.from('case_fees').select('*').order('created_at',{ascending:false});
         setFees(data||[]);
@@ -37,8 +38,8 @@ export function useFeesActions(db: any, cases: any[], clients: any[], country?: 
         (pays||[]).forEach(p=>{ if(!grouped[p.fee_id]) grouped[p.fee_id]=[]; grouped[p.fee_id].push(p); });
         setPayments(grouped);
         setLoading(false);
-    };
-    useEffect(()=>{ fetchFees(); },[]);
+    }, []);
+    useEffect(()=>{ fetchFees(); },[fetchFees]);
 
     const handleSave = async () => {
         if(!form.case_id||!form.total){ toast('يرجى اختيار القضية وإدخال إجمالي الأتعاب',true); return; }
@@ -59,6 +60,12 @@ export function useFeesActions(db: any, cases: any[], clients: any[], country?: 
             const { conflict } = await safeUpdate(db, 'case_fees', editId, payload, editFee?.updated_at || null);
             if (conflict) { setSaving(false); return; }
             toast('✅ تم تحديث الأتعاب');
+            logActivity(db, 'تعديل أتعاب', {
+                entity_type: 'fee', entity_id: editId, details: clientName || form.case_id,
+                client_name: clientName || null,
+                case_name: cases.find((c: any) => c.id === form.case_id)?.title || null,
+                case_type: cases.find((c: any) => c.id === form.case_id)?.type || null,
+            });
         } else {
             // إضافة جديدة — paid_fees يبدأ بصفر دايماً
             const {data:inserted, error} = await db.from('case_fees')
@@ -83,6 +90,12 @@ export function useFeesActions(db: any, cases: any[], clients: any[], country?: 
                 }).eq('id',inserted.id);
             }
             toast('✅ تم إضافة الأتعاب');
+            logActivity(db, 'إضافة أتعاب', {
+                entity_type: 'fee', entity_id: inserted?.id, details: clientName || form.case_id,
+                client_name: clientName || null,
+                case_name: cases.find((c: any) => c.id === form.case_id)?.title || null,
+                case_type: cases.find((c: any) => c.id === form.case_id)?.type || null,
+            });
         }
         setSaving(false);
         setShowForm(false); setForm({case_id:'',client_name_manual:'',client_name_text:'',receiver:'',total:'',paid:'',payment_date:'',notes:''}); setEditId(null);
@@ -116,6 +129,13 @@ export function useFeesActions(db: any, cases: any[], clients: any[], country?: 
         const { error: updateError } = await db.from('case_fees').update(upd).eq('id',fee.id);
         if(updateError){ toast('⚠️ تم تسجيل الدفعة لكن فشل تحديث إجمالي المدفوع، يرجى تحديث الصفحة', true); fetchFees(); return; }
         toast('✅ تم تسجيل الدفعة');
+        logActivity(db, 'تسجيل دفعة', {
+            entity_type: 'fee', entity_id: fee.id,
+            details: `${amount.toLocaleString('ar-EG')} ${currency} — ${resolvedClient || fee.client_name || ''}`,
+            client_name: resolvedClient || fee.client_name || null,
+            case_name: cases.find((c: any) => c.id === fee.case_id)?.title || null,
+            case_type: cases.find((c: any) => c.id === fee.case_id)?.type || null,
+        });
         setAddPaymentFor(null); setPayAmount(''); setPayDate(''); setPayNote(''); setPayReceiver(''); setPayClientName(''); setPayClientNameText('');
         fetchFees();
     };
@@ -129,15 +149,28 @@ export function useFeesActions(db: any, cases: any[], clients: any[], country?: 
         const { error: updateError } = await db.from('case_fees').update({paid_fees: realPaid}).eq('id',fee.id);
         if(updateError){ toast('⚠️ تم حذف الدفعة لكن فشل تحديث إجمالي المدفوع، يرجى تحديث الصفحة', true); fetchFees(); return; }
         toast('🗑 تم حذف الدفعة');
+        logActivity(db, 'حذف دفعة', {
+            entity_type: 'fee', entity_id: fee.id, details: fee.client_name || null,
+            client_name: fee.client_name || null,
+            case_name: cases.find((c: any) => c.id === fee.case_id)?.title || null,
+            case_type: cases.find((c: any) => c.id === fee.case_id)?.type || null,
+        });
         fetchFees();
     };
 
     const handleDelete = async (id) => {
+        const targetFee = fees.find((f: any) => f.id === id);
         const { error: paymentsError } = await db.from('fee_payments').delete().eq('fee_id',id);
         if(paymentsError){ toast('❌ فشل الحذف، يرجى المحاولة مرة أخرى', true); return; }
         const { error: feeError } = await db.from('case_fees').delete().eq('id',id);
         if(feeError){ toast('❌ فشل الحذف، يرجى المحاولة مرة أخرى', true); return; }
         toast('🗑 تم الحذف');
+        logActivity(db, 'حذف أتعاب', {
+            entity_type: 'fee', entity_id: id,
+            client_name: targetFee?.client_name || null,
+            case_name: cases.find((c: any) => c.id === targetFee?.case_id)?.title || null,
+            case_type: cases.find((c: any) => c.id === targetFee?.case_id)?.type || null,
+        });
         fetchFees();
     };
 
@@ -218,6 +251,7 @@ export function useFeesActions(db: any, cases: any[], clients: any[], country?: 
 
 
   return {
+    // ── State الأساسي ──
     fees, setFees, payments, setPayments, expandedPayments, setExpandedPayments,
     loading, showForm, setShowForm, form, setForm, saving, editId, setEditId,
     addPaymentFor, setAddPaymentFor, payAmount, setPayAmount, payDate, setPayDate,
@@ -226,6 +260,24 @@ export function useFeesActions(db: any, cases: any[], clients: any[], country?: 
     payReceiver, setPayReceiver, payClientName, setPayClientName,
     payClientNameText, setPayClientNameText, feesSearch, setFeesSearch,
     feesFilter, setFeesFilter,
+
+    // ── Handlers ──
     fetchFees, handleSave, handleAddPayment, handleDeletePayment, handleDelete,
+
+    // ── تصنيف وفلترة ──
+    getFeeCategory,
+    feesSections,
+    feesByCategory,
+    feesAfterCategoryFilter,
+    filteredFees,
+
+    // ── إجماليات الفئة الحالية ──
+    totalAll, paidAll, remaining,
+
+    // ── إجماليات شاملة ──
+    grandTotal, grandPaid, grandRemaining,
+
+    // ── دوال تنسيق ──
+    fmt, fmtDate,
   };
 }
