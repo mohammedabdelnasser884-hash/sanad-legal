@@ -1,7 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import { toast } from '../../utils';
+import { db } from '../../supabaseClient';
 
-export function useAdminBackup(db: any, profile?: any) {
+export function useAdminBackup(profile?: any) {
   const [backups, setBackups] = useState([]);
   const [loadingBackups, setLoadingBackups] = useState(false);
   const [creatingBackup, setCreatingBackup] = useState(false);
