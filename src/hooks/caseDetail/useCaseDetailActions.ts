@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { db } from '../../supabaseClient';
 import { toast, validateUploadFile, escapeHtml, escapeTelegramHtml, safeUpdate } from '../../utils';
 import { loadOfficeSetting } from '../../constants';
