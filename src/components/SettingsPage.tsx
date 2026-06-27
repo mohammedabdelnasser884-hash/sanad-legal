@@ -227,7 +227,7 @@ function SettingsPage({profile, isAdmin, country, onCountryChange, onClose}){
             const typeNames={civil:'مدني',labor:'عمالي',commercial:'تجاري',criminal:'جزائي'};
             return React.createElement('div',{key:type,className:"bg-premium-card border border-white/5 rounded-xl p-3"},
               React.createElement('p',{className:"text-[9px] font-black text-slate-400 mb-1"},typeNames[type]||type),
-              React.createElement('p',{className:"text-[10px] text-slate-300 leading-relaxed"},(ref||'').replace('{{n}}','[رقم المادة]'))
+              React.createElement('p',{className:"text-[10px] text-slate-300 leading-relaxed"},String(ref||'').replace('{{n}}','[رقم المادة]'))
             );
           })
         ),
