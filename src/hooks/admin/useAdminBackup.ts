@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { toast } from '../../utils';
 
-export function useAdminBackup(db: any) {
+export function useAdminBackup(db: any, profile?: any) {
   const [backups, setBackups] = useState([]);
   const [loadingBackups, setLoadingBackups] = useState(false);
   const [creatingBackup, setCreatingBackup] = useState(false);
