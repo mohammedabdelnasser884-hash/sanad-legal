@@ -3,7 +3,7 @@ import { db } from '../../supabaseClient';
 import { toast, validateUploadFile, escapeHtml, escapeTelegramHtml, safeUpdate } from '../../utils';
 import { loadOfficeSetting } from '../../constants';
 
-export function useCaseDetailActions(caseData: any, onUpdate: any, onDelete: any, onNotify: any) {
+export function useCaseDetailActions(caseData: any, onUpdate: any, onDelete: any, onNotify: any, setShowStatusPicker?: (v: boolean) => void, client?: any) {
   const [sessions, setSessions] = useState([]);
   const [notes, setNotes] = useState([]);
   const [docs, setDocs] = useState([]);
@@ -378,7 +378,7 @@ export function useCaseDetailActions(caseData: any, onUpdate: any, onDelete: any
 
     const handleChangeStatus = async (newStatus) => {
         setChangingStatus(true);
-        setShowStatusPicker(false);
+        setShowStatusPicker?.(false);
         const { success, conflict } = await safeUpdate(db, 'cases', caseData.id, { status: newStatus }, caseData.updated_at || null);
         setChangingStatus(false);
         if (conflict) return;
@@ -402,7 +402,7 @@ export function useCaseDetailActions(caseData: any, onUpdate: any, onDelete: any
     deletingDocId, setDeletingDocId, fileInputRef,
     savingSession, savingNote, changingStatus,
     sessionForm, setSessionForm, noteText, setNoteText,
-    exportingPdf, showWhatsApp, setShowWhatsApp, officeWhatsAppName,
+    exportingPdf, showWhatsApp, setShowWhatsApp, officeWhatsAppName, setOfficeWhatsAppName,
     confirmDeleteSession, setConfirmDeleteSession,
     confirmDeleteNote, setConfirmDeleteNote,
     fetchSessions, handleFileSelect, handleUploadDoc, handleDeleteDoc,
