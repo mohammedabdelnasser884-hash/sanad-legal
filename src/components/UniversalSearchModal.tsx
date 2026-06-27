@@ -10,7 +10,7 @@ const MIN_CHARS = 2;
 // ── عدد النتائج لكل نوع ──
 const LIMIT = 20;
 
-function UniversalSearchModal({ cases, clients, db, onClose, onOpenCase, onOpenClient }) {
+function UniversalSearchModal({ cases, clients, onClose, onOpenCase, onOpenClient }) {
     const [q, setQ]                     = useState('');
     const [dbDocs, setDbDocs]           = useState([]);
     const [dbSessions, setDbSessions]   = useState([]);
