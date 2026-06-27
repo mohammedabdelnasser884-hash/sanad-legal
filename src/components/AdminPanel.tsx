@@ -37,7 +37,7 @@ export default function AdminPanel({ db, profile, lawyers, clients, fetchLawyers
   const users = useAdminUsers(db, fetchLawyers);
   const sessions = useAdminSessions(db, section, profile);
   const activity = useAdminActivity(db);
-  const backup = useAdminBackup(db);
+  const backup = useAdminBackup(db, profile);
   const office = useAdminOffice(db, profile?.tenant_id ?? null);
   const library = useAdminLegalLibrary(db);
   const portal = useAdminPortal(db);
