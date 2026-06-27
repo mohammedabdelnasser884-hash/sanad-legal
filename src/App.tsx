@@ -389,11 +389,11 @@ function App() {
                         className: 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-premium-gold/10 border border-premium-gold/25 text-premium-gold text-[10px] font-black active:scale-95 transition-all hover:bg-premium-gold/15'
                     }, '📊 الملخص المالي')
                 ),
-                React.createElement(FeesTab, { cases, clients, showSummaryModal: showFeesSummary, setShowSummaryModal: setShowFeesSummary, country })
+                React.createElement(FeesTab, { cases, clients, showSummaryModal: showFeesSummary, setShowSummaryModal: setShowFeesSummary, country, profile })
             ),
             tab === 'reminders' && React.createElement('div', { className: 'space-y-4 fade-in' },
                 React.createElement('h3', { className: 'text-sm font-black text-white' }, '🔔 التذكيرات المخصصة'),
-                React.createElement(RemindersTab, { initialFilter: remindersInitialFilter })
+                React.createElement(RemindersTab, { initialFilter: remindersInitialFilter, profile })
             ),
             tab === 'team' && (isAdmin
                 ? TeamTabContent
@@ -568,7 +568,7 @@ function App() {
                 setCases((prev: any[]) => prev.map(c => c.id === selectedCase.id ? { ...c, status: newStatus } : c));
                 setCasesFilter(newStatus); setCasesPage(0); fetchCases(0, newStatus);
             },
-            onDelete: handleDeleteCase, onEdit: handleUpdateCase, onNotify: sendTelegram,
+            onDelete: handleDeleteCase, onEdit: handleUpdateCase, onNotify: sendTelegram, profile,
         }),
 
         // ── Exit Confirm ──
