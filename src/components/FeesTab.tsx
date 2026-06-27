@@ -6,7 +6,7 @@ import { I, COUNTRY_CONFIGS, loadOfficeSetting, SanadMark } from '../constants';
 import { db } from '../supabaseClient';
 import { useFeesActions } from '../hooks/fees/useFeesActions';
 
-function FeesTab({cases, clients, showSummaryModal, setShowSummaryModal, country}){
+function FeesTab({cases, clients, showSummaryModal, setShowSummaryModal, country, profile=null}){
     const {
       fees, payments, expandedPayments, setExpandedPayments,
       loading, showForm, setShowForm, form, setForm, saving, editId, setEditId,
@@ -21,7 +21,7 @@ function FeesTab({cases, clients, showSummaryModal, setShowSummaryModal, country
       fmt, fmtDate,
       feesByCategory, feesSections, feesAfterCategoryFilter, filteredFees,
       grandTotal, grandPaid, grandRemaining,
-    } = useFeesActions(cases, clients, country);
+    } = useFeesActions(cases, clients, country, profile);
 
     const [detailsFor, setDetailsFor] = useState(null); // معرف بطاقة الأتعاب المفتوحة تفاصيلها
     // ── عملة الدولة المختارة في الإعدادات (افتراضي جنيه مصري) ──
