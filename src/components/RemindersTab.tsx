@@ -8,7 +8,7 @@ import { db } from '../supabaseClient';
 import { I, COUNTRY_CONFIGS } from '../constants';
 
 
-function RemindersTab({db, initialFilter}){
+function RemindersTab({initialFilter}){
     const [reminders, setReminders] = useState([]);
     const [loading, setLoading]     = useState(true);
     const [showForm, setShowForm]   = useState(false);
@@ -17,16 +17,17 @@ function RemindersTab({db, initialFilter}){
     const [editTarget, setEditTarget]   = useState(null);
     const [editForm, setEditForm]       = useState({title:'', due_date:'', notes:''});
     const [editSaving, setEditSaving]   = useState(false);
+    const [confirmDeleteId, setConfirmDeleteId] = useState<string|null>(null);  // BUG-15 FIX
 
-    const fetchReminders = async () => {
+    const fetchReminders = useCallback(async () => {
         setLoading(true);
         const {data, error} = await db.from('reminders').select('*').order('due_date',{ascending:true});
         if(error){ recordError('db_reminders', error.message); }
         else { recordSuccess('db_reminders'); }
         setReminders(data||[]);
         setLoading(false);
-    };
-    useEffect(()=>{ fetchReminders(); },[]);
+    }, []);
+    useEffect(()=>{ fetchReminders(); },[fetchReminders]);
 
     const handleSave = async () => {
         if(!form.title||!form.due_date){ toast('يرجى إدخال العنوان والتاريخ',true); return; }
@@ -72,14 +73,15 @@ function RemindersTab({db, initialFilter}){
     const handleEdit = async () => {
         if(!editForm.title||!editForm.due_date){ toast('يرجى إدخال العنوان والتاريخ',true); return; }
         setEditSaving(true);
-        const {error} = await db.from('reminders').update({
+        const { success, conflict } = await safeUpdate(db, 'reminders', editTarget.id, {
             title: editForm.title.trim(),
             due_date: editForm.due_date,
             notes: editForm.notes||null,
-        }).eq('id', editTarget.id);
+        }, editTarget.updated_at || null);
         setEditSaving(false);
-        if(error){
-            recordError('reminder_save', error.message, {label:'حفظ التذكيرات', message:'تعذّر تعديل المهمة. تحقق من الاتصال بالإنترنت.'});
+        if(conflict) return;
+        if(!success){
+            recordError('reminder_save', '', {label:'حفظ التذكيرات', message:'تعذّر تعديل المهمة. تحقق من الاتصال بالإنترنت.'});
             toast('❌ حدث خطأ، يرجى المحاولة مرة أخرى', true);
             return;
         }
@@ -125,7 +127,7 @@ function RemindersTab({db, initialFilter}){
                 },React.createElement(I.Edit,{className:"w-3 h-3"})),
                 // زر حذف
                 React.createElement('button',{
-                    onClick:()=>handleDelete(r.id),
+                    onClick:()=>setConfirmDeleteId(r.id),
                     className:"w-6 h-6 rounded-lg bg-rose-500/10 flex items-center justify-center text-rose-400 hover:bg-rose-500/20 active:scale-90 shrink-0"
                 },React.createElement(I.Trash,{className:"w-3 h-3"}))
             )
@@ -176,6 +178,35 @@ function RemindersTab({db, initialFilter}){
 
     const activeSection = pillSections.find(s => s.key === filter)!;
 
+    // مودال تأكيد الحذف (BUG-15 FIX)
+    const ConfirmDeleteModal = confirmDeleteId && React.createElement('div',{
+        className:"fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4",
+        onClick:()=>setConfirmDeleteId(null)
+    },
+        React.createElement('div',{
+            className:"bg-premium-card border border-rose-500/20 rounded-2xl p-5 max-w-xs w-full space-y-4",
+            onClick:e=>e.stopPropagation()
+        },
+            React.createElement('div',{className:"flex items-center gap-3"},
+                React.createElement('div',{className:"w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-xl shrink-0"},"🗑"),
+                React.createElement('div',null,
+                    React.createElement('p',{className:"text-sm font-black text-white"},"حذف التذكير"),
+                    React.createElement('p',{className:"text-[10px] text-slate-400 mt-0.5"},"لن يمكن التراجع عن هذا الإجراء.")
+                )
+            ),
+            React.createElement('div',{className:"flex gap-2"},
+                React.createElement('button',{
+                    onClick:()=>{ handleDelete(confirmDeleteId); setConfirmDeleteId(null); },
+                    className:"flex-1 py-2.5 bg-rose-500/20 border border-rose-500/30 text-rose-400 rounded-xl text-xs font-black active:scale-95"
+                },"نعم، احذف"),
+                React.createElement('button',{
+                    onClick:()=>setConfirmDeleteId(null),
+                    className:"flex-1 py-2.5 bg-white/5 text-slate-400 rounded-xl text-xs font-bold active:scale-95"
+                },"إلغاء")
+            )
+        )
+    );
+
     // مودال التعديل
     const EditModal = editTarget && React.createElement('div',{
         className:"fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm",
@@ -203,6 +234,7 @@ function RemindersTab({db, initialFilter}){
     );
 
     return React.createElement(React.Fragment,null,
+    ConfirmDeleteModal,
     EditModal,
     React.createElement('div',{className:"space-y-4 fade-in"},
 
