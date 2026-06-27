@@ -5,7 +5,7 @@ import { I, COUNTRY_CONFIGS } from '../constants';
 
 import { MONTHS_AR, DAYS_AR } from './shared';
 
-function DatePicker({label, value, onChange, required}){
+function DatePicker({label, value, onChange, required = false}){
     const [open, setOpen]   = useState(false);
     const ref               = useRef(null);
     const parsed = value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(value+"T00:00:00") : null;
