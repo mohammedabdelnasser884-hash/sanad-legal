@@ -3,6 +3,7 @@ import { toast, logActivity } from '../../utils';
 import { db } from '../../supabaseClient';
 
 export function useAdminBackup(profile?: any) {
+  const _userName = profile?.full_name || null;
   const [backups, setBackups] = useState([]);
   const [loadingBackups, setLoadingBackups] = useState(false);
   const [creatingBackup, setCreatingBackup] = useState(false);
@@ -52,7 +53,7 @@ export function useAdminBackup(profile?: any) {
     setBackupProgress('');
     if (error) { toast('❌ فشل حفظ النسخة الاحتياطية', true); return; }
     toast('✅ تم إنشاء النسخة الاحتياطية بنجاح');
-    logActivity(db, 'إنشاء نسخة احتياطية', { entity_type: 'backup', details: `${totalRows} صف — ${sizeKb} KB`, userName: profile?.full_name || null });
+    logActivity(db, 'إنشاء نسخة احتياطية', { entity_type: 'backup', details: `${totalRows} صف — ${sizeKb} KB`, userName: _userName });
     fetchBackups();
   };
 
@@ -67,7 +68,7 @@ export function useAdminBackup(profile?: any) {
     a.click();
     URL.revokeObjectURL(url);
     toast('📥 جاري التنزيل...');
-    logActivity(db, 'تنزيل نسخة احتياطية', { entity_type: 'backup', details: new Date(backup.created_at).toLocaleDateString('ar-EG'), userName: profile?.full_name || null });
+    logActivity(db, 'تنزيل نسخة احتياطية', { entity_type: 'backup', details: new Date(backup.created_at).toLocaleDateString('ar-EG'), userName: _userName });
   };
 
   // ── استعادة نسخة ──
@@ -94,7 +95,9 @@ export function useAdminBackup(profile?: any) {
     setRestoreConfirmText('');
     const backupDate = new Date(backup.created_at).toLocaleDateString('ar-EG');
     toast(`✅ تمت الاستعادة — ${restored} جداول`);
-    logActivity(db, 'استعادة نسخة احتياطية', { entity_type: 'backup', details: `نسخة ${backupDate} — ${restored} جداول`, userName: profile?.full_name || null });
+    logActivity(db, 'استعادة نسخة احتياطية', { entity_type: 'backup', details: `نسخة ${backupDate} — ${restored} جداول`, userName: _userName });
+    // إعادة تحميل التطبيق عشان البيانات المستعادة تظهر فوراً
+    setTimeout(() => window.location.reload(), 1500);
   };
 
   return {
