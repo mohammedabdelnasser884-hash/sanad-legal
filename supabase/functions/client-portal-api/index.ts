@@ -20,12 +20,60 @@
 //  صلاحيته 7 أيام — مش JWT خاص بـ Supabase Auth.
 // ══════════════════════════════════════════════════════
 
-import { corsHeaders, handleCors } from '../_shared/cors.ts';
+// ── CORS مدمج هنا بدل الاستيراد من ../_shared/cors.ts ──
+// (عشان النشر من لوحة Supabase مباشرة كملف واحد من غير مشاكل استيراد)
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+function handleCors(req: Request): Response | null {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+  return null;
+}
 
 const SUPABASE_URL       = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE_KEY   = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const JWT_SECRET         = Deno.env.get('CLIENT_PORTAL_TOKEN_SECRET') ?? 'sanad-portal-secret-change-me';
 const TOKEN_TTL_MS       = 7 * 24 * 60 * 60 * 1000; // 7 أيام
+
+// ── حماية من تجربة كل أرقام PIN (brute-force) ─────────
+// بعد MAX_ATTEMPTS محاولة فاشلة خلال WINDOW_MINUTES دقيقة على نفس
+// الـ contact (أو نفس الـ IP) يتم قفل الدخول مؤقتًا لمدة LOCKOUT_MINUTES.
+const MAX_ATTEMPTS      = 5;
+const WINDOW_MINUTES     = 15;
+const LOCKOUT_MINUTES    = 15;
+
+function getClientIp(req: Request): string {
+  return (
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    req.headers.get('cf-connecting-ip') ||
+    req.headers.get('x-real-ip') ||
+    'unknown'
+  );
+}
+
+/** هل الـ contact أو IP ده مقفول حاليًا بسبب محاولات فاشلة كتير؟ */
+async function isLockedOut(contact: string, ip: string): Promise<boolean> {
+  const since = new Date(Date.now() - WINDOW_MINUTES * 60 * 1000).toISOString();
+  const [byContact, byIp] = await Promise.all([
+    rest(`portal_pin_attempts?contact=eq.${encodeURIComponent(contact)}&success=eq.false&created_at=gte.${encodeURIComponent(since)}&select=id`),
+    ip !== 'unknown'
+      ? rest(`portal_pin_attempts?ip_address=eq.${encodeURIComponent(ip)}&success=eq.false&created_at=gte.${encodeURIComponent(since)}&select=id`)
+      : Promise.resolve([]),
+  ]);
+  return byContact.length >= MAX_ATTEMPTS || byIp.length >= MAX_ATTEMPTS;
+}
+
+async function recordAttempt(contact: string, ip: string, success: boolean) {
+  try {
+    await rest('portal_pin_attempts', 'POST', { contact, ip_address: ip, success });
+  } catch {
+    // تسجيل المحاولة لا يجب أن يُسقط الطلب لو فشل لأي سبب
+  }
+}
 
 // ── helpers ──────────────────────────────────────────
 
@@ -98,29 +146,56 @@ async function requireToken(token?: string) {
 
 // ── actions ──────────────────────────────────────────
 
+/** بيخفي جزء من الاسم بحيث ميتسربش الاسم الكامل لأي زائر بدون تسجيل دخول */
+function maskName(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/);
+  if (!parts.length) return '';
+  const first = parts[0];
+  const maskedRest = parts.slice(1).map(p => (p[0] ?? '') + '*'.repeat(Math.max(p.length - 1, 1)));
+  return [first, ...maskedRest].join(' ');
+}
+
 /** find: ابحث عن موكل بالهاتف أو الإيميل */
-async function actionFind(body: Record<string, string>) {
+async function actionFind(body: Record<string, string>, ip: string) {
   const contact = (body.contact ?? '').trim();
   if (!contact) return json({ error: 'أدخل رقم الهاتف' }, 400);
+
+  // نفس حماية محاولات verify: نمنع تجربة أرقام كتير بسرعة لاكتشاف
+  // أرقام عملاء حقيقيين (enumeration)
+  if (await isLockedOut(`find:${contact}`, ip)) {
+    return json({ error: 'محاولات كثيرة، حاول مرة أخرى بعد بعض الوقت' }, 429);
+  }
 
   // ابحث في clients بـ phone أو email
   const rows = await rest(
     `clients?or=(phone.eq.${encodeURIComponent(contact)},email.eq.${encodeURIComponent(contact)})&select=id,full_name,phone,email,tenant_id&limit=1`,
   );
-  if (!rows.length) return json({ error: 'لم يُعثر على حساب بهذا الرقم' }, 404);
-  return json({ client_name: rows[0].full_name });
+  if (!rows.length) {
+    await recordAttempt(`find:${contact}`, ip, false);
+    return json({ error: 'لم يُعثر على حساب بهذا الرقم' }, 404);
+  }
+  // لا نُرجع الاسم كاملًا بدون تسجيل دخول — جزء من الاسم فقط
+  // كافٍ لتأكيد الحساب الصحيح للمستخدم الشرعي.
+  return json({ client_name: maskName(rows[0].full_name) });
 }
 
 /** verify: تحقق من PIN وأعد token */
-async function actionVerify(body: Record<string, string>) {
+async function actionVerify(body: Record<string, string>, ip: string) {
   const contact = (body.contact ?? '').trim();
   const pin     = (body.pin ?? '').trim();
   if (!contact || !pin) return json({ error: 'بيانات ناقصة' }, 400);
 
+  if (await isLockedOut(contact, ip)) {
+    return json({ error: `محاولات كثيرة فاشلة، حاول مرة أخرى بعد ${LOCKOUT_MINUTES} دقيقة` }, 429);
+  }
+
   const rows = await rest(
     `clients?or=(phone.eq.${encodeURIComponent(contact)},email.eq.${encodeURIComponent(contact)})&select=id,full_name,phone,email,type,tenant_id&limit=1`,
   );
-  if (!rows.length) return json({ error: 'لم يُعثر على الحساب' }, 404);
+  if (!rows.length) {
+    await recordAttempt(contact, ip, false);
+    return json({ error: 'لم يُعثر على الحساب' }, 404);
+  }
 
   const client = rows[0];
 
@@ -133,10 +208,15 @@ async function actionVerify(body: Record<string, string>) {
   const portalAccess = pinRows[0];
 
   if (!portalAccess || !portalAccess.is_active) {
+    await recordAttempt(contact, ip, false);
     return json({ error: 'لم يتم تفعيل بوابتك بعد، تواصل مع المكتب' }, 403);
   }
-  if (portalAccess.pin !== pin) return json({ error: 'رمز الدخول غير صحيح ❌' }, 401);
+  if (portalAccess.pin !== pin) {
+    await recordAttempt(contact, ip, false);
+    return json({ error: 'رمز الدخول غير صحيح ❌' }, 401);
+  }
 
+  await recordAttempt(contact, ip, true);
   const token = await signToken({ client_id: client.id, tenant_id: client.tenant_id });
   return json({ token, client });
 }
@@ -232,10 +312,11 @@ Deno.serve(async (req: Request) => {
   try {
     const body = await req.json().catch(() => ({})) as Record<string, string>;
     const { action, token, ...rest_body } = body;
+    const ip = getClientIp(req);
 
     // Actions بدون توثيق
-    if (action === 'find')   return actionFind(rest_body);
-    if (action === 'verify') return actionVerify(rest_body);
+    if (action === 'find')   return actionFind(rest_body, ip);
+    if (action === 'verify') return actionVerify(rest_body, ip);
 
     // Actions محتاجة token
     const claims = await requireToken(token);
