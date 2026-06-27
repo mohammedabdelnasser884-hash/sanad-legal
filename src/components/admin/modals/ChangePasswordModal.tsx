@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { IconKey } from '../icons';
+import { I } from '../../../constants';
+import { IconKey, IconWarning } from '../icons';
 
 function ChangePasswordModal({ user, onSave, onClose, saving }) {
   const [newPass, setNewPass] = useState('');
