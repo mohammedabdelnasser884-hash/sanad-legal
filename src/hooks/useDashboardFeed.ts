@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { db } from '../supabaseClient';
+import { db, SUPA_URL, SUPA_KEY } from '../supabaseClient';
 
 export function useDashboardFeed(profile: any) {
     const [todaySessions, setTodaySessions] = useState([]);       // جلسات اليوم فقط
