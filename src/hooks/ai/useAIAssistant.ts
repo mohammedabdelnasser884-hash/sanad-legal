@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { db } from '../../supabaseClient';
 import { loadOfficeSetting, COUNTRY_CONFIGS } from '../../constants';
 import { toast, escapeHtml } from '../../utils';
