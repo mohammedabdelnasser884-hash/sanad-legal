@@ -46,7 +46,7 @@ function AILegalAssistant({onClose, cases, clients, profile, country}){
       showTopics, setShowTopics, newTopic, deleteTopic,
       selectedCase, setSelectedCase,
       docType, setDocType, docFields, sf,
-      generatedDoc, generatingDoc,
+      generatedDoc, setGeneratedDoc, generatingDoc,
       copied, copyDoc, printDoc, downloadPDF, generateDocument,
       sendMessage, inputRef, messagesEndRef,
       today, activeCfg, DOC_TEMPLATES, colorMap,
