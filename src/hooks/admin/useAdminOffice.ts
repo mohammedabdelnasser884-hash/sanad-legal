@@ -1,8 +1,9 @@
 import React, { useState, useCallback } from 'react';
-import { toast, validateUploadFile } from '../../utils';
+import { toast, validateUploadFile, logActivity } from '../../utils';
 import { db } from '../../supabaseClient';
 
-export function useAdminOffice(tenantId: string | null) {
+export function useAdminOffice(tenantId: string | null, profile?: any) {
+  const _userName = profile?.full_name || null;
   const [officeSettings, setOfficeSettings] = useState({
     officeName: '', officePhone: '', officeEmail: '', officeAddress: '',
     logoUrl: '', country: 'EG'
@@ -23,7 +24,7 @@ export function useAdminOffice(tenantId: string | null) {
       }
     } catch(e) { /* الجدول غير موجود بعد */ }
     setLoadingOffice(false);
-  }, [db, tenantId]);
+  }, [tenantId]);
 
   // ── حفظ إعدادات المكتب ──
   const handleSaveOfficeSettings = async () => {
@@ -81,6 +82,7 @@ export function useAdminOffice(tenantId: string | null) {
       setOfficeSettings(s => ({ ...s, logoUrl }));
       setLogoFile(null);
       toast('✅ تم حفظ إعدادات المكتب');
+      logActivity(db, 'تعديل إعدادات المكتب', { userName: _userName, entity_type: 'office', details: payload.name || null });
     } catch(e: any) {
       toast('❌ خطأ في الحفظ: ' + (e?.message || String(e)), true);
     }
