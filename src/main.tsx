@@ -26,6 +26,14 @@ declare global {
     __savePushSubscription: (sub: PushSubscription) => Promise<void>;
     __pwaInstallPrompt: BeforeInstallPromptEvent | null;
     __VAPID_PUBLIC_KEY: string;
+    __dbWrite: (op: {
+      type: 'INSERT' | 'UPDATE' | 'DELETE';
+      table: string;
+      data?: any;
+      id?: any;
+      knownUpdatedAt?: any;
+      returning?: boolean;
+    }) => Promise<{ error: any; offline?: boolean; queued?: boolean }>;
   }
   interface BeforeInstallPromptEvent extends Event {
     prompt(): Promise<void>;
@@ -64,9 +72,21 @@ window.__offlineEnqueue = async (operation: object) => {
         const tx    = db.transaction(STORE_NAME, 'readwrite');
         const store = tx.objectStore(STORE_NAME);
         store.add({ ...operation, timestamp: Date.now(), status: 'pending' });
-        return new Promise<void>((res, rej) => { tx.oncomplete = () => res(); tx.onerror = rej; });
+        await new Promise<void>((res, rej) => { tx.oncomplete = () => res(); tx.onerror = rej; });
     } catch (err) {
         console.error('[Offline] Failed to enqueue:', err);
+        return;
+    }
+    // طبقة إضافية: نسجّل Background Sync لو المتصفح بيدعمها (Chrome/Android).
+    // ده تحسين فوقي بس — مش الاعتماد الأساسي، لأن Safari/iOS مابيدعمهاش أصلاً.
+    // الاعتماد الأساسي هو مستمع 'online' المباشر اللي تحت في نفس الملف.
+    try {
+        if ('serviceWorker' in navigator && 'SyncManager' in window) {
+            const reg = await navigator.serviceWorker.ready;
+            await (reg as any).sync.register('sync-offline-queue');
+        }
+    } catch (err) {
+        // طبيعي إن ده يفشل على متصفحات مش داعمة — متجاهلين
     }
 };
 
@@ -274,6 +294,37 @@ window.__syncOfflineQueue = async function() {
     } else { hideSyncIndicator(); }
     window.dispatchEvent(new CustomEvent('offline-sync-complete'));
 };
+
+// ══════════════════════════════════════════════════════════
+//  المزامنة الفعلية — الاعتماد الأساسي (يشتغل في كل المتصفحات)
+//  Background Sync فوق (لو الجهاز بيدعمها) ميغطّيش Safari/iOS أبدًا،
+//  فمحتاجين آلية تشتغل أونلاين مباشرة كل وقت ما التطبيق مفتوح.
+// ══════════════════════════════════════════════════════════
+let __syncInFlight = false;
+async function __runOfflineSyncIfNeeded() {
+    if (__syncInFlight) return;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    try {
+        const count = await window.__getOfflineQueueCount?.() || 0;
+        if (count === 0) return;
+        __syncInFlight = true;
+        await window.__syncOfflineQueue?.();
+    } catch (err) {
+        console.error('[Offline] Sync attempt failed:', err);
+    } finally {
+        __syncInFlight = false;
+    }
+}
+
+// 1) أول ما ترجع أونلاين — جرّب تزامن فورًا
+window.addEventListener('online', () => { __runOfflineSyncIfNeeded(); });
+
+// 2) أول ما يفتح التطبيق (لو كانت فيه عمليات معلّقة من قبل ما يتقفل المتصفح) وإنت أصلاً أونلاين
+window.addEventListener('load', () => { __runOfflineSyncIfNeeded(); });
+
+// 3) شبكة أمان إضافية — فحص دوري كل دقيقة لو فيه عمليات معلّقة ومتصل بالنت
+//    (يغطي حالات نادرة زي رجوع النت من غير ما يطلق حدث 'online' بشكل موثوق)
+setInterval(() => { __runOfflineSyncIfNeeded(); }, 60000);
 
 (window as any).__dbWrite = async function({ type, table, data, id, knownUpdatedAt }: any) {
     if (navigator.onLine) {
