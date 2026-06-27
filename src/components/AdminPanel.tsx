@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { I } from '../constants';
-import { toast, validateUploadFile } from '../utils';
+import { toast, validateUploadFile, detectDevice } from '../utils';
 import { callAdminAction } from '../supabaseClient';
 import LegalLibraryModal from './LegalLibraryModal';
 
@@ -20,8 +20,23 @@ import { useAdminBackup } from '../hooks/admin/useAdminBackup';
 import { useAdminOffice } from '../hooks/admin/useAdminOffice';
 import { useAdminLegalLibrary } from '../hooks/admin/useAdminLegalLibrary';
 import { useAdminPortal } from '../hooks/admin/useAdminPortal';
+// ─── Types ────────────────────────────────
+interface AdminPanelProps {
+    profile: {
+        id: string;
+        user_id: string;
+        full_name: string;
+        email: string;
+        role: 'admin' | 'lawyer' | 'viewer';
+        tenant_id: string;
+        [key: string]: any;
+    } | null;
+    lawyers: any[];
+    clients: any[];
+    fetchLawyers: () => void;
+}
 
-export default function AdminPanel({ db, profile, lawyers, clients, fetchLawyers }) {
+export default function AdminPanel({ profile, lawyers, clients, fetchLawyers }: AdminPanelProps) {
   const [section, setSection] = useState(null);
 
   // ── قفل الـ scroll ──
@@ -34,38 +49,50 @@ export default function AdminPanel({ db, profile, lawyers, clients, fetchLawyers
   }, [section]);
 
   // ─── Hooks ──────────────────────────────
-  const users = useAdminUsers(db, fetchLawyers);
-  const sessions = useAdminSessions(db, section, profile);
-  const activity = useAdminActivity(db);
-  const backup = useAdminBackup(db, profile);
-  const office = useAdminOffice(db, profile?.tenant_id ?? null);
-  const library = useAdminLegalLibrary(db);
-  const portal = useAdminPortal(db);
+  const users = useAdminUsers(fetchLawyers);
+  const sessions = useAdminSessions(section, profile);
+  const activity = useAdminActivity();
+  const backup = useAdminBackup(profile);
+  const office = useAdminOffice(profile?.tenant_id ?? null);
+  const library = useAdminLegalLibrary();
+  const portal = useAdminPortal();
 
   // ── destructure للـ render compatibility (نفس أسماء المتغيرات القديمة) ──
   const { editUser, setEditUser, showAddUser, setShowAddUser, saving, confirmDelete, setConfirmDelete, changePassUser, setChangePassUser, confirmSignOut, setConfirmSignOut, confirmLock, setConfirmLock, securityMsg, setSecurityMsg, handleEditUser, handleAddUser, handleDeleteUser, toggleUserActive, handleChangePassword, handleSignOutAllDevices, handleToggleLock } = users;
   const { activeSessions, loadingSessions, terminatingSession, terminatingAll, setTerminatingAll, confirmTerminateAll, setConfirmTerminateAll, sessionsLastRefresh, sessionsAutoRefresh, setSessionsAutoRefresh, fetchActiveSessions, handleTerminateSession, handleTerminateAllSessions } = sessions;
   const { activityLog, activityTotal, loadingActivity, activityPage, setActivityPage, activityFilters, setActivityFilters, ACTIVITY_PAGE_SIZE, fetchActivity } = activity;
+
+  // ── Debounce على بحث النشاط (400ms) — يمنع query لكل حرف ──
+  const [activitySearchInput, setActivitySearchInput] = useState(activityFilters.search || '');
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout>|null>(null);
+  const handleActivitySearchChange = useCallback((val: string) => {
+    setActivitySearchInput(val);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      setActivityFilters((f: any) => ({ ...f, search: val }));
+      setActivityPage(0);
+    }, 400);
+  }, [setActivityFilters, setActivityPage]);
   const { backups, loadingBackups, creatingBackup, backupProgress, confirmRestore, setConfirmRestore, restoringBackup, fetchBackups, handleCreateBackup, handleDownloadBackup, handleRestoreBackup } = backup;
   const { officeSettings, setOfficeSettings, loadingOffice, savingOffice, logoFile, setLogoFile, logoPreview, setLogoPreview, fetchOfficeSettings, handleSaveOfficeSettings } = office;
   const { laws, legalCategories, loadingLaws, showLawModal, setShowLawModal, editingLaw, setEditingLaw, confirmDeleteLaw, setConfirmDeleteLaw, savingLaw, processingLaw, fetchLaws, fetchLegalCategories, handleSaveLaw, handleProcessLaw, handleDeleteLaw } = library;
   const { portalAccess, portalClient, setPortalClient, clientSearch, setClientSearch, showAddPortalUser, setShowAddPortalUser, savingPortal, fetchPortalAccess, handleSavePortal } = portal;
 
-  function detectDevice(ua) {
-    const u = ua.toLowerCase();
-    if (/mobile|android|iphone|ipad/.test(u)) return '📱 موبايل';
-    if (/tablet/.test(u)) return '📲 تابلت';
-    return '🖥️ كمبيوتر';
-  }
-
   // ── جلب البيانات عند تغيير القسم ──
   useEffect(() => {
     fetchPortalAccess();
-    if (section === 'activity') fetchActivity(activityFilters, activityPage);
+    // ملاحظة: قسم activity يُعاد جلبه من useEffect منفصل (يراقب الفلاتر والصفحة)
+    // عشان نتجنب double-fetch لما المستخدم يفتح القسم لأول مرة
     if (section === 'backup')   fetchBackups();
     if (section === 'office')   fetchOfficeSettings();
     if (section === 'legal_library') { fetchLaws(); fetchLegalCategories(); }
   }, [section]);
+
+  // ── جلب سجل النشاط عند فتح القسم أو تغيير الفلاتر أو الصفحة ──
+  // useEffect واحد بس عشان ما يتنادى مرتين عند فتح القسم لأول مرة
+  useEffect(() => {
+    if (section === 'activity') fetchActivity(activityFilters, activityPage);
+  }, [section, activityFilters, activityPage]);
 
   // ── إحصائيات المستخدمين ──
   const stats = {
@@ -826,25 +853,82 @@ export default function AdminPanel({ db, profile, lawyers, clients, fetchLawyers
     // ══════════════════════════
     section === 'activity' && React.createElement('div',{className:"space-y-3"},
 
-      // ── بحث حر فقط ──
+      // ── بحث حر ──
       React.createElement('div',{className:"relative"},
         React.createElement('input',{
-          value: activityFilters.search,
-          onChange: e => { setActivityFilters(f=>({...f,search:e.target.value})); setActivityPage(0); },
+          value: activitySearchInput,
+          onChange: e => handleActivitySearchChange(e.target.value),
           placeholder:"🔍 بحث في السجلات...",
           className:"w-full p-2.5 pr-4 text-xs rounded-xl border border-white/10 bg-premium-card text-white placeholder-slate-500",
           style:{fontFamily:'Cairo,sans-serif'}
         }),
-        activityFilters.search && React.createElement('button',{
-          onClick:()=>{ setActivityFilters(f=>({...f,search:''})); setActivityPage(0); },
+        activitySearchInput && React.createElement('button',{
+          onClick:()=>{ setActivitySearchInput(''); setActivityFilters((f: any)=>({...f,search:''})); setActivityPage(0); },
           className:"absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
         }, React.createElement(I.X,{className:"w-3.5 h-3.5"}))
+      ),
+
+      // ── فلاتر متقدمة: نوع الإجراء + التاريخ ──
+      React.createElement('div',{className:"flex gap-2"},
+
+        // فلتر نوع الإجراء
+        React.createElement('select',{
+          value: activityFilters.action,
+          onChange: e => { setActivityFilters(f=>({...f,action:e.target.value})); setActivityPage(0); },
+          className:"flex-1 p-2 text-[10px] rounded-xl border border-white/10 bg-premium-card text-white",
+          style:{fontFamily:'Cairo,sans-serif'}
+        },
+          React.createElement('option',{value:''},'كل الإجراءات'),
+          React.createElement('option',{value:'إضافة'},'➕ إضافة'),
+          React.createElement('option',{value:'تعديل'},'✏️ تعديل'),
+          React.createElement('option',{value:'حذف'},'🗑️ حذف'),
+          React.createElement('option',{value:'دخول'},'🔑 دخول'),
+          React.createElement('option',{value:'تصدير'},'📤 تصدير')
+        ),
+
+        // فلتر المستخدم
+        React.createElement('select',{
+          value: activityFilters.user_id,
+          onChange: e => { setActivityFilters(f=>({...f,user_id:e.target.value})); setActivityPage(0); },
+          className:"flex-1 p-2 text-[10px] rounded-xl border border-white/10 bg-premium-card text-white",
+          style:{fontFamily:'Cairo,sans-serif'}
+        },
+          React.createElement('option',{value:''},'كل المستخدمين'),
+          ...lawyers.map((u:any) => React.createElement('option',{key:u.user_id||u.id, value:u.user_id||u.id}, u.full_name||u.email||'مستخدم'))
+        )
+      ),
+
+      // فلتر نطاق التاريخ
+      React.createElement('div',{className:"flex gap-2 items-center"},
+        React.createElement('input',{
+          type:'date',
+          value: activityFilters.from,
+          onChange: e => { setActivityFilters(f=>({...f,from:e.target.value})); setActivityPage(0); },
+          className:"flex-1 p-2 text-[10px] rounded-xl border border-white/10 bg-premium-card text-white",
+          style:{fontFamily:'Cairo,sans-serif'}
+        }),
+        React.createElement('span',{className:"text-[10px] text-slate-500 shrink-0"},"→"),
+        React.createElement('input',{
+          type:'date',
+          value: activityFilters.to,
+          onChange: e => { setActivityFilters(f=>({...f,to:e.target.value})); setActivityPage(0); },
+          className:"flex-1 p-2 text-[10px] rounded-xl border border-white/10 bg-premium-card text-white",
+          style:{fontFamily:'Cairo,sans-serif'}
+        }),
+        // زر مسح كل الفلاتر
+        (activityFilters.action || activityFilters.user_id || activityFilters.from || activityFilters.to) &&
+        React.createElement('button',{
+          onClick:()=>{ setActivityFilters({search:activityFilters.search, user_id:'', action:'', from:'', to:''}); setActivityPage(0); },
+          className:"shrink-0 px-2 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[9px] font-bold active:scale-95"
+        },"مسح")
       ),
 
       // ── عداد النتائج ──
       React.createElement('p',{className:"text-[10px] text-slate-500 px-1"},
         loadingActivity ? "جاري البحث..." :
-        `${activityTotal} سجل${activityTotal !== activityLog.length ? ` — صفحة ${activityPage+1}` : ''}`
+        activityTotal > ACTIVITY_PAGE_SIZE
+          ? `صفحة ${activityPage+1} من ${Math.ceil(activityTotal/ACTIVITY_PAGE_SIZE)} (${activityTotal} سجل)`
+          : `${activityTotal} سجل`
       ),
 
       // ── النتائج ──
