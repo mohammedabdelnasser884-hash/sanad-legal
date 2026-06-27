@@ -26,8 +26,5 @@ export function usePwaInstall() {
         if(outcome==='accepted'){ window.__pwaInstallPrompt=null; setPwaInstallable(false); }
     };
 
-    const isAdmin=profile?.role==='admin';
-
-
   return { pwaInstallable, pwaInstalled, handlePwaInstall };
 }
