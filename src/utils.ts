@@ -268,16 +268,23 @@ export async function logActivity(
         // لو المستدعي بعت userName جاهز (من profile state) نستخدمه مباشرةً
         // ونوفّر query إضافي على profiles في كل استدعاء
         let userName: string | null = opts?.userName ?? null;
+        let tenantId: string | null = null;
         if (!userName) {
-            // fallback: نجيب الاسم من DB (للأماكن اللي مش عندها profile جاهز)
+            // fallback: نجيب الاسم والـ tenant_id من DB
             userName = user.email || null;
-            const { data: prof } = await db.from('profiles').select('full_name').eq('user_id', user.id).maybeSingle();
+            const { data: prof } = await db.from('profiles').select('full_name,tenant_id').eq('user_id', user.id).maybeSingle();
             if (prof?.full_name) userName = prof.full_name;
+            if (prof?.tenant_id) tenantId = prof.tenant_id;
+        } else {
+            // لو عندنا userName جاهز، نجيب tenant_id بس
+            const { data: prof } = await db.from('profiles').select('tenant_id').eq('user_id', user.id).maybeSingle();
+            if (prof?.tenant_id) tenantId = prof.tenant_id;
         }
 
         await db.from('activity_log').insert([{
             user_id: user.id,
             user_name: userName,
+            tenant_id: tenantId,
             action,
             details: opts?.details ?? null,
             entity_type: opts?.entity_type ?? null,
