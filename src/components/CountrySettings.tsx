@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { I, COUNTRY_CONFIGS } from '../constants';
+import { I, COUNTRY_CONFIGS, loadOfficeSetting, saveOfficeSetting } from '../constants';
 import { toast } from '../utils';
 import { db } from '../supabaseClient';
-import { I, COUNTRY_CONFIGS, loadOfficeSetting, saveOfficeSetting } from "../constants";
 
 
 function CountrySettings({currentCountry, onCountryChange}){
