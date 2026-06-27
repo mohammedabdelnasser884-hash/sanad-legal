@@ -42,8 +42,10 @@ export function useAIAssistant(cases: any[], clients: any[], profile: any, count
     }, [profile?.tenant_id]);
 
 
-    // ── Topics persisted in localStorage ──
-    const TOPICS_KEY = 'sanad_ai_topics_v2';
+    // ── Topics persisted in localStorage — مفتاح مخصص لكل مستخدم ──
+    // ⚠️ لو المفتاح ثابت، محامي تاني على نفس الجهاز يشوف محادثات زميله
+    const userId = profile?.id || profile?.user_id || 'guest';
+    const TOPICS_KEY = `sanad_ai_topics_v2_${userId}`;
     const loadTopics = () => { try { return JSON.parse(localStorage.getItem(TOPICS_KEY)||'[]'); } catch(e){ return []; } };
     const saveTopics = (t) => { try { localStorage.setItem(TOPICS_KEY, JSON.stringify(t)); } catch(e){} };
 
