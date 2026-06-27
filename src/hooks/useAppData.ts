@@ -78,6 +78,7 @@ export function useAppData(profile: any) {
             plaintiff:      r.plaintiff || null,
             defendant:      r.defendant || null,
             year:           r.created_at ? new Date(r.created_at).getFullYear() : new Date().getFullYear(),
+            updated_at:     r.updated_at || null,  // BUG-19: محتاجينه لـ knownUpdatedAt في handleUpdateCase
         }));
 
         if (page === 0) setCases(mapped);
