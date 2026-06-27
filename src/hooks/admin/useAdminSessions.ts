@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { toast } from '../../utils';
-import { callAdminAction } from '../../supabaseClient';
+import { toast, detectDevice } from '../../utils';
+import { callAdminAction, db } from '../../supabaseClient';
 
-export function useAdminSessions(db: any, section: string | null, profile: any) {
+export function useAdminSessions(section: string | null, profile: any) {
   const [activeSessions, setActiveSessions] = useState([]);
   const [loadingSessions, setLoadingSessions] = useState(false);
   const [terminatingSession, setTerminatingSession] = useState(null);
@@ -48,18 +48,6 @@ export function useAdminSessions(db: any, section: string | null, profile: any) 
     }
     setLoadingSessions(false);
   }, [db]);
-
-  // دالة مساعدة لتحديد نوع الجهاز من User-Agent
-  function detectDevice(ua) {
-    if (!ua) return 'جهاز غير معروف';
-    const u = ua.toLowerCase();
-    if (u.includes('iphone') || u.includes('android') || u.includes('mobile')) return 'هاتف محمول 📱';
-    if (u.includes('ipad') || u.includes('tablet')) return 'تابلت 📲';
-    if (u.includes('mac')) return 'Mac 💻';
-    if (u.includes('windows')) return 'Windows 🖥';
-    if (u.includes('linux')) return 'Linux 🐧';
-    return 'جهاز غير معروف 💻';
-  }
 
   // ── إنهاء جلسة مستخدم بعينه (عبر Edge Function آمنة) ──
   const handleTerminateSession = async (sess) => {
