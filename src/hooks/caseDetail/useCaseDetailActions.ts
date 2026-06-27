@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { db } from '../../supabaseClient';
-import { toast, validateUploadFile, escapeHtml, escapeTelegramHtml, safeUpdate } from '../../utils';
+import { toast, validateUploadFile, escapeHtml, escapeTelegramHtml, safeUpdate, logActivity } from '../../utils';
 import { loadOfficeSetting } from '../../constants';
 
 export function useCaseDetailActions(caseData: any, onUpdate: any, onDelete: any, onNotify: any, setShowStatusPicker?: (v: boolean) => void, client?: any) {
@@ -33,8 +33,9 @@ export function useCaseDetailActions(caseData: any, onUpdate: any, onDelete: any
   const [officeWhatsAppName, setOfficeWhatsAppName] = useState('');
   const [confirmDeleteSession, setConfirmDeleteSession] = useState<{id:string, date:string}|null>(null);
   const [confirmDeleteNote, setConfirmDeleteNote] = useState<{id:string, preview:string}|null>(null);
+  const [confirmDeleteDoc, setConfirmDeleteDoc] = useState<{id:string, file_name:string, storage_path:string}|null>(null);
 
-    const fetchSessions = async () => {
+    const fetchSessions = useCallback(async () => {
         setLoadingSessions(true);
         const {data} = await db.from('case_sessions').select('*').eq('case_id', caseData.id).order('session_date', {ascending: false});
         setSessions(data || []);
@@ -43,7 +44,7 @@ export function useCaseDetailActions(caseData: any, onUpdate: any, onDelete: any
         const {data: dd} = await db.from('case_documents').select('*').eq('case_id', caseData.id).order('created_at', {ascending: false});
         setDocs(dd || []);
         setLoadingSessions(false);
-    };
+    }, [caseData.id]);
 
     const handleFileSelect = (e) => {
         const file = e.target.files[0];
@@ -82,6 +83,11 @@ export function useCaseDetailActions(caseData: any, onUpdate: any, onDelete: any
         setUploadingDoc(false);
         if (dbErr) { toast('❌ ' + dbErr.message, true); return; }
         toast('✅ تم رفع المستند بنجاح');
+        logActivity(db, 'رفع مستند', {
+            entity_type: 'document', details: `${caseData.title} — ${docLabel.trim() || pendingFile.name}`,
+            case_name: caseData.title || null, case_type: caseData.type || null,
+            client_name: client?.full_name || null,
+        });
         setShowDocForm(false); setPendingFile(null); setDocLabel(''); setDocCategory('مذكرة دفاع');
         if (fileInputRef.current) fileInputRef.current.value = '';
         fetchSessions();
@@ -99,10 +105,15 @@ export function useCaseDetailActions(caseData: any, onUpdate: any, onDelete: any
         setDeletingDocId(null);
         if (dbErr) { toast('❌ حُذف الملف لكن فشل تحديث السجل', true); return; }
         toast('🗑 تم حذف المستند');
+        logActivity(db, 'حذف مستند', {
+            entity_type: 'document', entity_id: doc.id, details: `${caseData.title} — ${doc.file_name}`,
+            case_name: caseData.title || null, case_type: caseData.type || null,
+            client_name: client?.full_name || null,
+        });
         fetchSessions();
     };
 
-    useEffect(() => { fetchSessions(); }, [caseData.id]);
+    useEffect(() => { fetchSessions(); }, [fetchSessions]);
 
     const handleExportPdf = async () => {
         setExportingPdf(true);
@@ -291,6 +302,11 @@ export function useCaseDetailActions(caseData: any, onUpdate: any, onDelete: any
         setSavingSession(false);
         if (error) { toast('❌ فشل الحفظ', true); return; }
         toast('✅ تمت إضافة الجلسة');
+        logActivity(db, 'إضافة جلسة', {
+            entity_type: 'session', details: `${caseData.title} — ${sessionForm.date}`,
+            case_name: caseData.title || null, case_type: caseData.type || null,
+            client_name: client?.full_name || null,
+        });
         if(onNotify){
             let msg=`📅 <b>جلسة جديدة</b>\n\n`;
             msg+=`⚖️ <b>${escapeTelegramHtml(caseData.title||'—')}</b>\n`;
@@ -318,6 +334,11 @@ export function useCaseDetailActions(caseData: any, onUpdate: any, onDelete: any
         setSavingNote(false);
         if (error) { toast('❌ فشل الحفظ', true); return; }
         toast('✅ تمت إضافة الملاحظة');
+        logActivity(db, 'إضافة ملاحظة', {
+            entity_type: 'note', details: caseData.title || null,
+            case_name: caseData.title || null, case_type: caseData.type || null,
+            client_name: client?.full_name || null,
+        });
         setNoteText('');
         setShowAddNote(false);
         fetchSessions();
@@ -327,6 +348,11 @@ export function useCaseDetailActions(caseData: any, onUpdate: any, onDelete: any
         const { error } = await db.from('case_notes').delete().eq('id', noteId);
         if (error) { toast('❌ فشل حذف الملاحظة، حاول مرة أخرى', true); return; }
         toast('🗑 تم حذف الملاحظة');
+        logActivity(db, 'حذف ملاحظة', {
+            entity_type: 'note', entity_id: noteId, details: caseData.title || null,
+            case_name: caseData.title || null, case_type: caseData.type || null,
+            client_name: client?.full_name || null,
+        });
         fetchSessions();
     };
 
@@ -337,6 +363,11 @@ export function useCaseDetailActions(caseData: any, onUpdate: any, onDelete: any
         if (conflict) return; // safeUpdate بيعرض الـ toast تلقائياً
         if (!success) { toast('❌ فشل التعديل', true); return; }
         toast('✅ تم تعديل الملاحظة');
+        logActivity(db, 'تعديل ملاحظة', {
+            entity_type: 'note', entity_id: noteId, details: caseData.title || null,
+            case_name: caseData.title || null, case_type: caseData.type || null,
+            client_name: client?.full_name || null,
+        });
         fetchSessions();
     };
 
@@ -344,6 +375,11 @@ export function useCaseDetailActions(caseData: any, onUpdate: any, onDelete: any
         const { error } = await db.from('case_sessions').delete().eq('id', sessionId);
         if (error) { toast('❌ فشل حذف الجلسة، حاول مرة أخرى', true); return; }
         toast('🗑 تم حذف الجلسة');
+        logActivity(db, 'حذف جلسة', {
+            entity_type: 'session', entity_id: sessionId, details: caseData.title || null,
+            case_name: caseData.title || null, case_type: caseData.type || null,
+            client_name: client?.full_name || null,
+        });
         fetchSessions();
     };
 
@@ -361,6 +397,11 @@ export function useCaseDetailActions(caseData: any, onUpdate: any, onDelete: any
         if (conflict) return;
         if (!success) { toast('❌ فشل التعديل', true); return; }
         toast('✅ تم تعديل الجلسة');
+        logActivity(db, 'تعديل جلسة', {
+            entity_type: 'session', entity_id: sessionId, details: `${caseData.title} — ${form.date}`,
+            case_name: caseData.title || null, case_type: caseData.type || null,
+            client_name: client?.full_name || null,
+        });
         if(onNotify){
             let msg=`✏️ <b>تم تعديل جلسة</b>\n`;
             msg+=`━━━━━━━━━━━━━━━━━━━━\n`;
@@ -384,6 +425,11 @@ export function useCaseDetailActions(caseData: any, onUpdate: any, onDelete: any
         if (conflict) return;
         if (!success) { toast('❌ فشل تغيير الحالة', true); return; }
         toast('✅ تم تحديث حالة القضية');
+        logActivity(db, 'تغيير حالة قضية', {
+            entity_type: 'case', entity_id: caseData.id, details: `${caseData.title} — ${newStatus}`,
+            case_name: caseData.title || null, case_type: caseData.type || null,
+            client_name: client?.full_name || null,
+        });
         onUpdate && onUpdate(newStatus);
     };
 
@@ -405,6 +451,7 @@ export function useCaseDetailActions(caseData: any, onUpdate: any, onDelete: any
     exportingPdf, showWhatsApp, setShowWhatsApp, officeWhatsAppName, setOfficeWhatsAppName,
     confirmDeleteSession, setConfirmDeleteSession,
     confirmDeleteNote, setConfirmDeleteNote,
+    confirmDeleteDoc, setConfirmDeleteDoc,
     fetchSessions, handleFileSelect, handleUploadDoc, handleDeleteDoc,
     handleExportPdf, handleAddSession, handleAddNote, handleDeleteNote,
     handleUpdateNote, handleDeleteSession, handleUpdateSession, handleChangeStatus,
