@@ -3,6 +3,7 @@ import { I } from '../../constants';
 import { MONTHS_AR2, WEEK_LABELS, toDateStr } from './constants';
 import SessionCard from './SessionCard';
 import TaskCard from './TaskCard';
+import { getDayName } from './WeekDayRow';
 
 function MonthWeekView({ weeks, sessionsMap, tasksMap, cases, clients, onOpenCase, onOpenReminders, todayStr, handleGoogleExport, prevMonth, nextMonth }: any) {
     const currentWeekIdx = weeks.findIndex((w: any) => w.days.includes(todayStr));
