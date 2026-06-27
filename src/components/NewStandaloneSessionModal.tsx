@@ -134,6 +134,10 @@ export default function NewStandaloneSessionModal({ onClose, onSaved, onNotify }
             onNotify(msg);
         }
 
+        logActivity(db, 'إضافة جلسة مستقلة', {
+            entity_type: 'session',
+            details: form.session_date || null,
+        });
         toast('✅ تمت إضافة الجلسة المستقلة');
         onSaved();
         onClose();
