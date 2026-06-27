@@ -110,7 +110,7 @@ export function useFeesActions(db: any, cases: any[], clients: any[], country?: 
         // احسب المجموع الفعلي من قاعدة البيانات بدون تحديد سقف
         const {data:allPays} = await db.from('fee_payments').select('amount').eq('fee_id',fee.id);
         const realPaid = (allPays||[]).reduce((s,p)=>s+(p.amount||0), 0);
-        const upd = {paid_fees: realPaid};
+        const upd: Record<string, any> = {paid_fees: realPaid};
         if(resolvedClient) upd.client_name = resolvedClient;
         if(payDate) upd.last_payment_date = payDate;
         const { error: updateError } = await db.from('case_fees').update(upd).eq('id',fee.id);
