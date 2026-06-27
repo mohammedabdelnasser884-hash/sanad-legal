@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { toast } from '../../utils';
+import { toast, logActivity } from '../../utils';
 import { callAdminAction, db } from '../../supabaseClient';
 
 export function useAdminLegalLibrary() {
@@ -71,10 +71,12 @@ export function useAdminLegalLibrary() {
         const { error } = await db.from('laws').update(payload).eq('id', editingLaw.id);
         if (error) throw error;
         toast('✅ تم حفظ التعديلات');
+        logActivity(db, 'تعديل قانون', { entity_type: 'law', entity_id: editingLaw.id, details: payload.title });
       } else {
         const { error } = await db.from('laws').insert({ ...payload, status: 'pending' });
         if (error) throw error;
         toast('✅ تم إضافة القانون — جاهز للمعالجة');
+        logActivity(db, 'إضافة قانون', { entity_type: 'law', details: payload.title });
       }
 
       setShowLawModal(false);
@@ -114,6 +116,7 @@ export function useAdminLegalLibrary() {
       if (extractData?.error) throw new Error(extractData.error);
 
       toast('✅ تمت معالجة القانون وفهرسته بنجاح — ' + (extractData?.articles_count || 0) + ' مادة');
+      logActivity(db, 'معالجة قانون', { entity_type: 'law', entity_id: law.id, details: law.title + ' — ' + (extractData?.articles_count || 0) + ' مادة' });
     } catch (e: any) {
       toast('❌ خطأ في المعالجة: ' + (e?.message || String(e)), true);
     }
@@ -131,6 +134,7 @@ export function useAdminLegalLibrary() {
       const { error } = await db.from('laws').delete().eq('id', law.id);
       if (error) throw error;
       toast('🗑️ تم حذف القانون ومواده');
+      logActivity(db, 'حذف قانون', { entity_type: 'law', entity_id: law.id, details: law.title });
       setConfirmDeleteLaw(null);
       fetchLaws();
     } catch(e: any) {
