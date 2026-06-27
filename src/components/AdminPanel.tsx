@@ -67,6 +67,19 @@ export default function AdminPanel({ db, profile, lawyers, clients, fetchLawyers
     if (section === 'legal_library') { fetchLaws(); fetchLegalCategories(); }
   }, [section]);
 
+  // ── إحصائيات المستخدمين ──
+  const stats = {
+    total:         lawyers.length,
+    active:        lawyers.filter((u: any) => u.is_active !== false).length,
+    admins:        lawyers.filter((u: any) => u.role === 'admin').length,
+    portalEnabled: portalAccess.filter((p: any) => p.is_active !== false).length,
+  };
+
+  // ── قائمة الموكلين المفلترة لبوابة الموكل ──
+  const filteredClients = clients.filter((c: any) =>
+    !clientSearch.trim() || (c.full_name || c.client_name || '').includes(clientSearch.trim())
+  );
+
   return React.createElement(React.Fragment, null,
 
     // ── المحتوى الرئيسي — متخفي لما section مفتوح ──
