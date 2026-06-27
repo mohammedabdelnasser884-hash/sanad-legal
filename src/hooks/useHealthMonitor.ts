@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getFailedServices, ServiceStatus, HEALTH_EVENT } from '../systemHealth';
 
 export function useHealthMonitor(_profile: any) {
