@@ -17,7 +17,7 @@ function CaseDetailView({caseData, client, onClose, onUpdate, onDelete, onEdit, 
     const [confirmDeleteCase, setConfirmDeleteCase] = useState(false);
     const [showStatusPicker, setShowStatusPicker] = useState(false);
 
-    const actions = useCaseDetailActions(caseData, onUpdate, onDelete, onNotify);
+    const actions = useCaseDetailActions(caseData, onUpdate, onDelete, onNotify, setShowStatusPicker, client);
     const {
       sessions, notes, docs, loadingSessions,
       showAddSession, setShowAddSession,
@@ -53,7 +53,7 @@ function CaseDetailView({caseData, client, onClose, onUpdate, onDelete, onEdit, 
             loadOfficeSetting('office_whatsapp'),
             loadOfficeSetting('office_name'),
         ]).then(([wa, name])=>{
-            setOfficeWhatsAppName(name||'مكتب المحاماة');
+            actions.setOfficeWhatsAppName?.(name||'مكتب المحاماة');
             // نحفظ رقم الواتساب في ref عشان نستخدمه في دوال الرسائل
             (window as any).__officeWA = wa||'';
         });
