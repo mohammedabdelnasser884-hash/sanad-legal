@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect } from 'react';
+import React, { useEffect, useCallback, useRef } from 'react';
 import { loadOfficeSetting } from '../constants';
 import { escapeTelegramHtml, toast } from '../utils';
 import { db } from '../supabaseClient';
