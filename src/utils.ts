@@ -175,6 +175,18 @@ export function validateEmail(email: string): string | null {
  *   conflict = true  → حد تاني عدّل السجل ده قبلك
  *   error           → خطأ من Supabase
  */
+// ── تحديد نوع الجهاز من User-Agent string ──
+export function detectDevice(ua: string): string {
+    if (!ua) return 'جهاز غير معروف 💻';
+    const u = ua.toLowerCase();
+    if (u.includes('iphone') || u.includes('android') || u.includes('mobile')) return 'هاتف محمول 📱';
+    if (u.includes('ipad') || u.includes('tablet')) return 'تابلت 📲';
+    if (u.includes('mac'))     return 'Mac 💻';
+    if (u.includes('windows')) return 'Windows 🖥';
+    if (u.includes('linux'))   return 'Linux 🐧';
+    return 'جهاز غير معروف 💻';
+}
+
 export async function safeUpdate(
     db: any,
     table: string,
@@ -213,4 +225,68 @@ export async function safeUpdate(
     // 3. آمن — نكتب
     const { error } = await db.from(table).update(data).eq('id', id);
     return { success: !error, conflict: false, error };
+}
+
+// ══════════════════════════════════════════════════════════════
+//  logActivity — تسجيل نشاط في activity_log (لوحة الإدارة)
+//  ⚠️ مصممة عشان متعطلش أي عملية أساسية:
+//  - لو المستخدم مش عامل لوجين (نادرًا) → بترجع بصمت
+//  - لو فشل الكتابة في activity_log لأي سبب (الجدول لسه متعمل،
+//    مشكلة شبكة، RLS...) → بتعمل console.error بس وما بترميش error
+//  - بتُستخدم بدون await في الأماكن اللي بتنادي عليها (fire-and-forget)
+//    عشان تسجيل النشاط ما يأخرش استجابة الشاشة للمستخدم.
+//
+//  @param db          - Supabase client (نفس النمط المستخدم في safeUpdate)
+//  @param action      - وصف الإجراء بالعربي، مثلاً 'إضافة قضية'
+//  @param opts.details      - تفاصيل إضافية (اسم القضية/الموكل...)
+//  @param opts.entity_type  - 'case' | 'client' | 'user' | 'portal' | 'fee' | 'session' | 'note' | 'document'
+//  @param opts.entity_id    - id السجل المرتبط (لو موجود)
+//  @param opts.userName     - اسم المستخدم المنفِّذ — لو اتبعت من profile يُستخدم مباشرةً
+//                             ويُوفَّر query على جدول profiles لكل استدعاء (N+1 fix)
+//  @param opts.client_name  - اسم الموكل المرتبط (لعرضه كشارة في لوحة الإدارة)
+//  @param opts.case_name    - عنوان/اسم القضية المرتبطة (لعرضها كشارة)
+//  @param opts.case_type    - نوع القضية المرتبطة (لعرضه كشارة)
+// ══════════════════════════════════════════════════════════════
+export async function logActivity(
+    db: any,
+    action: string,
+    opts?: {
+        details?: string | null;
+        entity_type?: string | null;
+        entity_id?: string | number | null;
+        userName?: string | null;
+        client_name?: string | null;
+        case_name?: string | null;
+        case_type?: string | null;
+    }
+): Promise<void> {
+    try {
+        const { data: sessionData } = await db.auth.getSession();
+        const user = sessionData?.session?.user;
+        if (!user) return;
+
+        // لو المستدعي بعت userName جاهز (من profile state) نستخدمه مباشرةً
+        // ونوفّر query إضافي على profiles في كل استدعاء
+        let userName: string | null = opts?.userName ?? null;
+        if (!userName) {
+            // fallback: نجيب الاسم من DB (للأماكن اللي مش عندها profile جاهز)
+            userName = user.email || null;
+            const { data: prof } = await db.from('profiles').select('full_name').eq('user_id', user.id).maybeSingle();
+            if (prof?.full_name) userName = prof.full_name;
+        }
+
+        await db.from('activity_log').insert([{
+            user_id: user.id,
+            user_name: userName,
+            action,
+            details: opts?.details ?? null,
+            entity_type: opts?.entity_type ?? null,
+            entity_id: opts?.entity_id ?? null,
+            client_name: opts?.client_name ?? null,
+            case_name: opts?.case_name ?? null,
+            case_type: opts?.case_type ?? null,
+        }]);
+    } catch (e) {
+        console.error('[activityLog] فشل تسجيل النشاط (تم تجاهله، العملية الأساسية لم تتأثر):', e);
+    }
 }
