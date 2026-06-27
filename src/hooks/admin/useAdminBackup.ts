@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { toast } from '../../utils';
+import { toast, logActivity } from '../../utils';
 import { db } from '../../supabaseClient';
 
 export function useAdminBackup(profile?: any) {
@@ -8,6 +8,7 @@ export function useAdminBackup(profile?: any) {
   const [creatingBackup, setCreatingBackup] = useState(false);
   const [backupProgress, setBackupProgress] = useState('');
   const [confirmRestore, setConfirmRestore] = useState(null);
+  const [restoreConfirmText, setRestoreConfirmText] = useState('');
   const [restoringBackup, setRestoringBackup] = useState(false);
 
   const fetchBackups = useCallback(async () => {
@@ -51,6 +52,7 @@ export function useAdminBackup(profile?: any) {
     setBackupProgress('');
     if (error) { toast('❌ فشل حفظ النسخة الاحتياطية', true); return; }
     toast('✅ تم إنشاء النسخة الاحتياطية بنجاح');
+    logActivity(db, 'إنشاء نسخة احتياطية', { entity_type: 'backup', details: `${totalRows} صف — ${sizeKb} KB`, userName: profile?.full_name || null });
     fetchBackups();
   };
 
@@ -65,10 +67,16 @@ export function useAdminBackup(profile?: any) {
     a.click();
     URL.revokeObjectURL(url);
     toast('📥 جاري التنزيل...');
+    logActivity(db, 'تنزيل نسخة احتياطية', { entity_type: 'backup', details: new Date(backup.created_at).toLocaleDateString('ar-EG'), userName: profile?.full_name || null });
   };
 
   // ── استعادة نسخة ──
+  // ⚠️ تتطلب كتابة 'استعادة' يدوياً في حقل التأكيد قبل التنفيذ
   const handleRestoreBackup = async (backup) => {
+    if (restoreConfirmText.trim() !== 'استعادة') {
+      toast('❌ اكتب "استعادة" في حقل التأكيد أولاً', true);
+      return;
+    }
     setRestoringBackup(true);
     const snapshot = backup.data;
     const restoreOrder = ['clients','cases','profiles','case_sessions','case_fees','fee_payments','case_documents','client_portal_pins'];
@@ -83,13 +91,17 @@ export function useAdminBackup(profile?: any) {
     }
     setRestoringBackup(false);
     setConfirmRestore(null);
+    setRestoreConfirmText('');
+    const backupDate = new Date(backup.created_at).toLocaleDateString('ar-EG');
     toast(`✅ تمت الاستعادة — ${restored} جداول`);
+    logActivity(db, 'استعادة نسخة احتياطية', { entity_type: 'backup', details: `نسخة ${backupDate} — ${restored} جداول`, userName: profile?.full_name || null });
   };
 
   return {
     backups, loadingBackups,
     creatingBackup, backupProgress,
     confirmRestore, setConfirmRestore,
+    restoreConfirmText, setRestoreConfirmText,
     restoringBackup,
     fetchBackups, handleCreateBackup, handleDownloadBackup, handleRestoreBackup
   };
