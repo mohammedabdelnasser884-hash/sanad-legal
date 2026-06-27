@@ -241,6 +241,26 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [profile]);
 
+    // ── إعادة تحميل القوائم بعد ما المزامنة الأوفلاين تخلص ──────
+    // العمليات اللي كانت محفوظة محلياً بتتزامن مع السيرفر في الخلفية،
+    // وبدون هذا المستمع، القوائم المعروضة تفضل قديمة (تبدو كإن البيانات
+    // "اختفت") لحد ما المستخدم يعمل ريفريش تاني بنفسه.
+    useEffect(() => {
+        if (!profile) return;
+        const onSyncComplete = () => {
+            Promise.all([
+                fetchCases(0, casesFilter),
+                fetchClients(0, clientSearch),
+                fetchUpcomingSessions(),
+                fetchTodaySessions(),
+                fetchMissedSessions(),
+            ]);
+        };
+        window.addEventListener('offline-sync-complete', onSyncComplete);
+        return () => window.removeEventListener('offline-sync-complete', onSyncComplete);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [profile]);
+
     // ─────────────────────────────────────────────────────────
     //  Loading screen
     // ─────────────────────────────────────────────────────────
