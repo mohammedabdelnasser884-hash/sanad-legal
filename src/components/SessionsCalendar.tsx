@@ -5,8 +5,9 @@ import WeekTab from './sessions-calendar/WeekTab';
 import MonthListTab from './sessions-calendar/MonthListTab';
 import CalendarTab from './sessions-calendar/CalendarTab';
 import MissedTab from './sessions-calendar/MissedTab';
+import { db } from '../supabaseClient';
 
-function SessionsCalendar({ db, cases, clients, onOpenCase, onOpenReminders, initialTab }: any) {
+function SessionsCalendar({ cases, clients, onOpenCase, onOpenReminders, initialTab }: any) {
     const [activeTab, setActiveTab] = useState<'week'|'month'|'calendar'|'missed'>(initialTab || 'week');
     const [missedCount, setMissedCount] = useState(0);
 
