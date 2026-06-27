@@ -1,7 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import { toast, validateUploadFile } from '../../utils';
+import { db } from '../../supabaseClient';
 
-export function useAdminOffice(db: any, tenantId: string | null) {
+export function useAdminOffice(tenantId: string | null) {
   const [officeSettings, setOfficeSettings] = useState({
     officeName: '', officePhone: '', officeEmail: '', officeAddress: '',
     logoUrl: '', country: 'EG'
