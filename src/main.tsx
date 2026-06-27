@@ -116,7 +116,7 @@ if ('serviceWorker' in navigator) {
             const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
             window.__swRegistration = reg;
             window.__swReady = true;
-            console.log('[App] Service Worker registered ✓', reg.scope);
+            if (import.meta.env.DEV) console.log('[App] Service Worker registered ✓', reg.scope);
 
             reg.addEventListener('updatefound', () => {
                 const newWorker = reg.installing;
@@ -214,6 +214,23 @@ window.__syncOfflineQueue = async function() {
             let conflict = false;
 
             if (op.type === 'INSERT') {
+                // BUG-20 FIX: جلسة مرتبطة بقضية أوفلاين — نجيب الـ id الحقيقي أولاً
+                if (op.table === 'case_sessions' && op.data._offlineCaseTitle) {
+                    const { data: caseRow } = await db
+                        .from('cases')
+                        .select('id')
+                        .eq('title', op.data._offlineCaseTitle)
+                        .order('created_at', { ascending: false })
+                        .limit(1)
+                        .maybeSingle();
+                    if (!caseRow) {
+                        // القضية لسه مش اتزامنت — نفضل في الـ queue ونكمل
+                        failCount++;
+                        continue;
+                    }
+                    op.data = { ...op.data, case_id: caseRow.id };
+                    delete op.data._offlineCaseTitle;
+                }
                 ({ error } = await db.from(op.table).insert([op.data]));
             } else if (op.type === 'UPDATE') {
                 // Optimistic Locking — نتحقق إن السجل مش اتعدل من حد تاني
