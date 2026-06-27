@@ -8,7 +8,8 @@ import { db } from '../supabaseClient';
 import { I, COUNTRY_CONFIGS } from '../constants';
 
 
-function RemindersTab({initialFilter}){
+function RemindersTab({initialFilter, profile=null}){
+    const _userName = (profile as any)?.full_name || null;
     const [reminders, setReminders] = useState([]);
     const [loading, setLoading]     = useState(true);
     const [showForm, setShowForm]   = useState(false);
@@ -27,7 +28,7 @@ function RemindersTab({initialFilter}){
         setReminders(data||[]);
         setLoading(false);
     }, []);
-    useEffect(()=>{ fetchReminders(); },[fetchReminders]);
+    useEffect(()=>{ if(profile) fetchReminders(); },[fetchReminders, profile]);
 
     const handleSave = async () => {
         if(!form.title||!form.due_date){ toast('يرجى إدخال العنوان والتاريخ',true); return; }
@@ -45,7 +46,7 @@ function RemindersTab({initialFilter}){
             return;
         }
         toast('✅ تم إضافة التذكير');
-        logActivity(db, 'إضافة تذكير', { entity_type: 'reminder', details: form.title.trim() });
+        logActivity(db, 'إضافة تذكير', { userName: _userName, entity_type: 'reminder', details: form.title.trim() });
         setShowForm(false); setForm({title:'',due_date:'',notes:''});
         fetchReminders();
     };
@@ -68,7 +69,7 @@ function RemindersTab({initialFilter}){
             return;
         }
         toast('🗑 تم حذف التذكير');
-        logActivity(db, 'حذف تذكير', { entity_type: 'reminder', entity_id: id });
+        logActivity(db, 'حذف تذكير', { userName: _userName, entity_type: 'reminder', entity_id: id });
         fetchReminders();
     };
 
@@ -88,7 +89,7 @@ function RemindersTab({initialFilter}){
             return;
         }
         toast('✅ تم تعديل المهمة');
-        logActivity(db, 'تعديل تذكير', { entity_type: 'reminder', entity_id: editTarget?.id, details: editForm.title.trim() });
+        logActivity(db, 'تعديل تذكير', { userName: _userName, entity_type: 'reminder', entity_id: editTarget?.id, details: editForm.title.trim() });
         setEditTarget(null);
         fetchReminders();
     };
