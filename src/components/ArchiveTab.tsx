@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { toast, validateUploadFile } from '../utils';
+import { toast, validateUploadFile, logActivity } from '../utils';
 import { Inp, Sel } from './shared';
 import { createPortal } from 'react-dom';
 import { db } from '../supabaseClient';
@@ -72,6 +72,10 @@ function ArchiveTab({cases, clients}){
         setUploadingDoc(false);
         if (dbErr) { toast('❌ '+dbErr.message,true); return; }
         toast('✅ تم رفع المستند وإضافته للأرشيف');
+        logActivity(db, 'رفع مستند (أرشيف)', {
+            entity_type: 'document',
+            details: docLabel.trim() || pendingFile.name,
+        });
         setShowForm(false); setPendingFile(null); setDocLabel(''); setDocCaseId('');
         if (fileInputRef.current) fileInputRef.current.value = '';
         fetchDocs();
@@ -89,6 +93,11 @@ function ArchiveTab({cases, clients}){
         setDeletingId(null);
         if (dbErr) { toast('❌ فشل تحديث قاعدة البيانات', true); return; }
         toast('🗑 تم حذف المستند من الأرشيف');
+        logActivity(db, 'حذف مستند (أرشيف)', {
+            entity_type: 'document',
+            entity_id: doc.id,
+            details: doc.file_name || null,
+        });
         setAllDocs(prev => prev.filter(d => d.id !== doc.id));
     };
 
