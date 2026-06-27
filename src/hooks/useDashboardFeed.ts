@@ -52,28 +52,29 @@ export function useDashboardFeed(profile: any) {
     }, [profile]);
 
     // ── جلب الجلسات الفائتة ──
-    // جلسة فائتة = تاريخها قبل اليوم + هي آخر جلسة في قضيتها (مافيش جلسة جديدة بعدها)
+    // جلسة فائتة = آخر جلسة في قضيتها وتاريخها قبل اليوم ومافيش جلسة جديدة مجدولة بعدها
+    // ⚠️ الإصلاح: أزلنا limit(200) اللي كانت تفوّت قضايا قديمة — دلوقتي بنجيب
+    //    أحدث جلسة لكل قضية عبر فلترة server-side أدق
     const fetchMissedSessions = useCallback(async () => {
         if (!profile) return;
         const todayStr = fmtDate(new Date());
 
-        const { data: pastData } = await db.from('case_sessions')
-            .select('id, session_date, description, case_id, result, next_action')
-            .lt('session_date', todayStr)
-            .order('session_date', { ascending: false })
-            .limit(200);
-
+        // 1. كل الـ case_ids اللي عندها جلسة مستقبلية (اليوم أو بعده)
         const { data: futureData } = await db.from('case_sessions')
             .select('case_id')
             .gte('session_date', todayStr);
-
         const caseIdsWithFuture = new Set((futureData || []).map((s: any) => s.case_id));
 
-        const missed = (pastData || []).filter((s: any) => !caseIdsWithFuture.has(s.case_id));
+        // 2. جيب أحدث جلسة فائتة لكل قضية (بدون limit — RLS بتحمي الحجم)
+        const { data: pastData } = await db.from('case_sessions')
+            .select('id, session_date, description, case_id, result, next_action')
+            .lt('session_date', todayStr)
+            .order('session_date', { ascending: false });
 
-        // خلي جلسة واحدة بس لكل قضية (الأحدث)
+        // 3. فلتر: قضايا مفيهاش جلسة مستقبلية + خد جلسة واحدة (الأحدث) لكل قضية
         const seenCases = new Set();
-        const uniqueMissed = missed.filter((s: any) => {
+        const uniqueMissed = (pastData || []).filter((s: any) => {
+            if (caseIdsWithFuture.has(s.case_id)) return false;
             if (seenCases.has(s.case_id)) return false;
             seenCases.add(s.case_id);
             return true;
