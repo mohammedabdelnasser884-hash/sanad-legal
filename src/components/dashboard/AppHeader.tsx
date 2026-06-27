@@ -18,7 +18,7 @@ function AppHeader({ profile, setShowMenu, setShowSearch, isAdmin, fetchCases, c
                 ),
                 React.createElement('div',{className:"flex flex-col min-w-0"},
                     React.createElement('h1',{className:"text-xs font-black tracking-tight text-white leading-tight truncate"},
-                        profile.full_name||'سَنَد'
+                        profile?.full_name||'سَنَد'
                     ),
                     React.createElement('p',{className:"text-[10px] font-bold flex items-center gap-1",style:{color:isAdmin?'#60a5fa':'#D4AF37'}},
                         React.createElement('span',{className:`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${isAdmin?'bg-blue-400':'bg-premium-gold'}`}),
