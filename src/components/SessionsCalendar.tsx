@@ -1,23 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { I } from '../constants';
 import { toDateStr } from './sessions-calendar/constants';
-import NewStandaloneSessionModal from './NewStandaloneSessionModal';
 import WeekTab from './sessions-calendar/WeekTab';
 import MonthListTab from './sessions-calendar/MonthListTab';
 import CalendarTab from './sessions-calendar/CalendarTab';
 import MissedTab from './sessions-calendar/MissedTab';
 
-function SessionsCalendar({ db, cases, clients, onOpenCase, onOpenReminders, onNotify, onSessionAdded, renderHeaderButton, initialTab }: any) {
+function SessionsCalendar({ db, cases, clients, onOpenCase, onOpenReminders, initialTab }: any) {
     const [activeTab, setActiveTab] = useState<'week'|'month'|'calendar'|'missed'>(initialTab || 'week');
     const [missedCount, setMissedCount] = useState(0);
-    const [showNewSession, setShowNewSession] = useState(false);
-
-    // نمرر الزر للأبوين عشان يعرضوه جنب عنوان "الجلسات"
-    useEffect(() => {
-        if (renderHeaderButton) {
-            renderHeaderButton(() => setShowNewSession(true));
-        }
-    }, [renderHeaderButton]);
 
     // جلب عدد الفائتة لعرضه على الـ badge
     useEffect(() => {
@@ -45,14 +36,6 @@ function SessionsCalendar({ db, cases, clients, onOpenCase, onOpenReminders, onN
     ] as const;
 
     return React.createElement('div', { className: "space-y-2 fade-in" },
-
-
-        // ── Modal ──
-        showNewSession && React.createElement(NewStandaloneSessionModal, {
-            onClose: () => setShowNewSession(false),
-            onSaved: () => { if (onSessionAdded) onSessionAdded(); },
-            onNotify
-        }),
 
         // ── التابس ──
         React.createElement('div', { className: "flex bg-white/5 border border-white/10 rounded-xl p-0.5 gap-0.5" },
