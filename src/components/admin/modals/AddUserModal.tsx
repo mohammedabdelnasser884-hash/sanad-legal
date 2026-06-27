@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { I } from '../../../constants';
 import { ROLE_CONFIG, PERMISSION_LABELS } from '../icons';
 
 function AddUserModal({ onSave, onClose, saving }) {
