@@ -343,6 +343,8 @@ window.__syncOfflineQueue = async function() {
         const { data: { session } } = await dbRef.auth.getSession();
         if (!session?.user) return;
         const browser = detectBrowser() + ' - ' + detectOS();
+        // جلب IP من Supabase auth metadata (متاح في session)
+        const ipAddr = (session as any)?.user?.last_sign_in_at ? null : null; // placeholder
         await dbRef.from('profiles').update({
             last_seen_at: new Date().toISOString(),
             last_seen_browser: browser,
