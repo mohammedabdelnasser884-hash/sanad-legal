@@ -1,8 +1,7 @@
-import { toast, validateUploadFile, escapeTelegramHtml, safeUpdate } from '../utils';
-import { callAdminAction } from '../supabaseClient';
+import { toast, validateUploadFile, escapeTelegramHtml, safeUpdate, logActivity } from '../utils';
+import { callAdminAction, db } from '../supabaseClient';
 
 export function useClientActions(params: {
-    db: any;
     sendTelegram: any;
     fetchClients: any;
     fetchLawyers: any;
@@ -16,12 +15,14 @@ export function useClientActions(params: {
     setShowClientModal: any;
     setShowLawyerModal: any;
     nav: any;
+    profile?: any;
 }) {
     const {
-        db, sendTelegram, fetchClients, fetchLawyers, clients, clientSearch,
+        sendTelegram, fetchClients, fetchLawyers, clients, clientSearch,
         setClients, setSelectedClient, setDeleteConfirm, setSavingClient,
-        setSavingLawyer, setShowClientModal, setShowLawyerModal, nav,
+        setSavingLawyer, setShowClientModal, setShowLawyerModal, nav, profile,
     } = params;
+    const _userName = profile?.full_name || null;
 
     // ─ حفظ موكل ─
     const handleSaveClient = async (form: any, idFile: any, poaFile: any) => {
@@ -69,6 +70,7 @@ export function useClientActions(params: {
             return;
         } else {
             toast('✅ تم إضافة الموكل بنجاح!');
+            logActivity(db, 'إضافة موكل', { userName: _userName, entity_type: 'client', details: form.full_name || null, client_name: form.full_name || null });
             // إشعار تليجرام - موكل جديد
             const typeLabel = form.type === 'company' ? 'شركة' : form.type === 'government' ? 'جهة حكومية' : 'فرد';
             let clientMsg = `👤 <b>موكل جديد تمت إضافته</b>\n`;
@@ -99,6 +101,7 @@ export function useClientActions(params: {
                 nav.closeModal('delete'); setDeleteConfirm(null);
                 if (error) { toast('❌ فشل الحذف، يرجى المحاولة مرة أخرى', true); return; }
                 toast('🗑 تم حذف الموكل نهائياً');
+                logActivity(db, 'حذف موكل', { userName: _userName, entity_type: 'client', entity_id: clientId, details: cl?.full_name || null, client_name: cl?.full_name || null });
                 setSelectedClient(null);
                 setClients((prev: any[]) => prev.filter((c: any) => c.id !== clientId));
             }
@@ -121,6 +124,7 @@ export function useClientActions(params: {
         if (conflict) return;
         if (!success) { toast('❌ فشل التعديل', true); return; }
         toast('✅ تم تحديث بيانات الموكل');
+        logActivity(db, 'تعديل موكل', { userName: _userName, entity_type: 'client', entity_id: clientId, details: form.full_name || null, client_name: form.full_name || null });
         fetchClients(0, clientSearch);
         nav.closeModal('clientDetail'); setSelectedClient(null);
     };
@@ -138,6 +142,7 @@ export function useClientActions(params: {
                 role: form.role,
             });
             toast('✅ تم إنشاء حساب ' + form.full_name + ' بنجاح!');
+            logActivity(db, 'إضافة مستخدم', { userName: _userName, entity_type: 'user', details: `${form.full_name} (${form.role || '—'})` });
             setShowLawyerModal(false); fetchLawyers();
         } catch (e) {
             toast('❌ فشل إنشاء الحساب، يرجى المحاولة مرة أخرى', true);
