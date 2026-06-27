@@ -11,13 +11,13 @@ import DeleteConfirmModal from './DeleteConfirmModal';
 import SessionsCalendar from './SessionsCalendar';
 import { useCaseDetailActions } from '../hooks/caseDetail/useCaseDetailActions';
 
-function CaseDetailView({caseData, client, onClose, onUpdate, onDelete, onEdit, onNotify, initialTab='timeline'}){
+function CaseDetailView({caseData, client, onClose, onUpdate, onDelete, onEdit, onNotify, initialTab='timeline', profile=null}){
     const [activeSection, setActiveSection] = useState(initialTab);
     const [showEditCase, setShowEditCase] = useState(false);
     const [confirmDeleteCase, setConfirmDeleteCase] = useState(false);
     const [showStatusPicker, setShowStatusPicker] = useState(false);
 
-    const actions = useCaseDetailActions(caseData, onUpdate, onDelete, onNotify, setShowStatusPicker, client);
+    const actions = useCaseDetailActions(caseData, onUpdate, onDelete, onNotify, setShowStatusPicker, client, profile);
     const {
       sessions, notes, docs, loadingSessions,
       showAddSession, setShowAddSession,
