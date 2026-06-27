@@ -73,7 +73,7 @@ export default function AdminPanel({ profile, lawyers, clients, fetchLawyers }: 
       setActivityPage(0);
     }, 400);
   }, [setActivityFilters, setActivityPage]);
-  const { backups, loadingBackups, creatingBackup, backupProgress, confirmRestore, setConfirmRestore, restoringBackup, fetchBackups, handleCreateBackup, handleDownloadBackup, handleRestoreBackup } = backup;
+  const { backups, loadingBackups, creatingBackup, backupProgress, confirmRestore, setConfirmRestore, restoreConfirmText, setRestoreConfirmText, restoringBackup, fetchBackups, handleCreateBackup, handleDownloadBackup, handleRestoreBackup } = backup;
   const { officeSettings, setOfficeSettings, loadingOffice, savingOffice, logoFile, setLogoFile, logoPreview, setLogoPreview, fetchOfficeSettings, handleSaveOfficeSettings } = office;
   const { laws, legalCategories, loadingLaws, showLawModal, setShowLawModal, editingLaw, setEditingLaw, confirmDeleteLaw, setConfirmDeleteLaw, savingLaw, processingLaw, fetchLaws, fetchLegalCategories, handleSaveLaw, handleProcessLaw, handleDeleteLaw } = library;
   const { portalAccess, portalClient, setPortalClient, clientSearch, setClientSearch, showAddPortalUser, setShowAddPortalUser, savingPortal, fetchPortalAccess, handleSavePortal } = portal;
@@ -882,8 +882,14 @@ export default function AdminPanel({ profile, lawyers, clients, fetchLawyers }: 
           React.createElement('option',{value:'إضافة'},'➕ إضافة'),
           React.createElement('option',{value:'تعديل'},'✏️ تعديل'),
           React.createElement('option',{value:'حذف'},'🗑️ حذف'),
-          React.createElement('option',{value:'دخول'},'🔑 دخول'),
-          React.createElement('option',{value:'تصدير'},'📤 تصدير')
+          React.createElement('option',{value:'تسجيل دخول'},'🔑 تسجيل دخول'),
+          React.createElement('option',{value:'تسجيل خروج'},'🚪 تسجيل خروج'),
+          React.createElement('option',{value:'إنهاء جلسة'},'⛔ إنهاء جلسة'),
+          React.createElement('option',{value:'نسخة احتياطية'},'💾 نسخة احتياطية'),
+          React.createElement('option',{value:'تصدير'},'📤 تصدير'),
+          React.createElement('option',{value:'تذكير'},'🔔 تذكيرات'),
+          React.createElement('option',{value:'قانون'},'⚖️ مكتبة قانونية'),
+          React.createElement('option',{value:'بوابة'},'🌐 بوابة الموكل')
         ),
 
         // فلتر المستخدم
@@ -1757,6 +1763,20 @@ export default function AdminPanel({ profile, lawyers, clients, fetchLawyers }: 
             "ستُستبدل البيانات الحالية بالنسخة المحددة. هذه العملية لا يمكن التراجع عنها. يُنصح بإنشاء نسخة احتياطية جديدة أولاً.")
         ),
 
+        // حقل التأكيد المزدوج — اكتب "استعادة" للمتابعة
+        React.createElement('div',{className:"space-y-1"},
+          React.createElement('p',{className:"text-[9px] text-slate-400 text-center"},
+            'اكتب ',React.createElement('span',{className:"text-red-400 font-black"},'"استعادة"'),' للتأكيد:'
+          ),
+          React.createElement('input',{
+            type:'text', value:restoreConfirmText,
+            onChange:e=>setRestoreConfirmText(e.target.value),
+            placeholder:'استعادة',
+            className:'w-full p-2 text-center text-xs rounded-xl border border-red-500/30 bg-red-500/5 text-white placeholder-slate-600',
+            style:{fontFamily:'Cairo,sans-serif'}
+          })
+        ),
+
         // معلومات النسخة
         confirmRestore.rows_count && React.createElement('div',{className:"flex justify-between text-[10px] text-slate-500 px-1"},
           React.createElement('span',null, (confirmRestore.rows_count).toLocaleString('ar-EG')+" سجل"),
@@ -1767,12 +1787,12 @@ export default function AdminPanel({ profile, lawyers, clients, fetchLawyers }: 
         // أزرار
         React.createElement('div',{className:"grid grid-cols-2 gap-2"},
           React.createElement('button',{
-            onClick:()=>setConfirmRestore(null),
+            onClick:()=>{ setConfirmRestore(null); setRestoreConfirmText(''); },
             className:"py-2.5 rounded-xl text-xs font-black bg-white/8 text-slate-300 active:scale-95 transition-transform"
           },"إلغاء"),
           React.createElement('button',{
             onClick:()=>handleRestoreBackup(confirmRestore),
-            disabled:restoringBackup,
+            disabled:restoringBackup||restoreConfirmText.trim()!=='استعادة',
             className:"py-2.5 rounded-xl text-xs font-black bg-[#C9A84C] text-white active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-1"
           },
             restoringBackup ? React.createElement(React.Fragment,null, React.createElement(I.Spin), "جاري الاستعادة...")
