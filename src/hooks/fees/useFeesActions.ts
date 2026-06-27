@@ -3,7 +3,7 @@ import { toast, escapeHtml, safeUpdate, logActivity } from '../../utils';
 import { COUNTRY_CONFIGS } from '../../constants';
 import { db } from '../../supabaseClient';
 
-export function useFeesActions(cases: any[], clients: any[], country?: string) {
+export function useFeesActions(cases: any[], clients: any[], country?: string, profile?: any) {
     const [fees, setFees] = useState([]);
     const [payments, setPayments] = useState({}); // keyed by fee_id
     const [expandedPayments, setExpandedPayments] = useState({});
@@ -29,6 +29,7 @@ export function useFeesActions(cases: any[], clients: any[], country?: string) {
     const currency = COUNTRY_CONFIGS[country||'EG']?.currency || 'جنيه مصري';
 
     const fetchFees = useCallback(async () => {
+        if (!profile) return; // مفيش مستخدم = مفيش جلب
         setLoading(true);
         const {data} = await db.from('case_fees').select('*').order('created_at',{ascending:false});
         setFees(data||[]);
@@ -38,7 +39,7 @@ export function useFeesActions(cases: any[], clients: any[], country?: string) {
         (pays||[]).forEach(p=>{ if(!grouped[p.fee_id]) grouped[p.fee_id]=[]; grouped[p.fee_id].push(p); });
         setPayments(grouped);
         setLoading(false);
-    }, []);
+    }, [profile]);
     useEffect(()=>{ fetchFees(); },[fetchFees]);
 
     const handleSave = async () => {
