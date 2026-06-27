@@ -35,6 +35,7 @@ function CaseDetailView({caseData, client, onClose, onUpdate, onDelete, onEdit, 
       exportingPdf, showWhatsApp, setShowWhatsApp, officeWhatsAppName,
       confirmDeleteSession, setConfirmDeleteSession,
       confirmDeleteNote, setConfirmDeleteNote,
+      confirmDeleteDoc, setConfirmDeleteDoc,
       fetchSessions, handleFileSelect, handleUploadDoc, handleDeleteDoc,
       handleExportPdf, handleAddSession, handleAddNote, handleDeleteNote,
       handleUpdateNote, handleDeleteSession, handleUpdateSession, handleChangeStatus,
@@ -472,7 +473,7 @@ function CaseDetailView({caseData, client, onClose, onUpdate, onDelete, onEdit, 
                                             React.createElement('div', {className: "flex items-center justify-between mb-3"},
                                                 React.createElement('div', {className: "flex items-center gap-2"},
                                                     React.createElement('div', {className: "p-1.5 bg-premium-gold/10 rounded-lg"},
-                                                        React.createElement(I.Calendar)
+                                                        React.createElement(I.CalGrid, {className: "w-4 h-4"})
                                                     ),
                                                     React.createElement('div',null,
                                                         React.createElement('span', {className: "text-[11px] font-black text-premium-gold"}, s.session_date),
@@ -764,7 +765,7 @@ function CaseDetailView({caseData, client, onClose, onUpdate, onDelete, onEdit, 
                                                 className: "w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-all text-sm"
                                             }, "↗"),
                                             React.createElement('button', {
-                                                onClick: () => handleDeleteDoc(doc),
+                                                onClick: () => setConfirmDeleteDoc({ id: doc.id, file_name: doc.file_name, storage_path: doc.storage_path }),
                                                 disabled: deletingDocId === doc.id,
                                                 className: "w-8 h-8 rounded-xl bg-rose-500/5 flex items-center justify-center text-rose-500/50 hover:text-rose-400 hover:bg-rose-500/10 transition-all disabled:opacity-40"
                                             }, deletingDocId === doc.id ? React.createElement(I.Spin) : React.createElement(I.Trash))
@@ -899,6 +900,31 @@ function CaseDetailView({caseData, client, onClose, onUpdate, onDelete, onEdit, 
                     }, "نعم، احذف"),
                     React.createElement('button', {
                         onClick: () => setConfirmDeleteNote(null),
+                        className: "flex-1 py-3 bg-white/5 text-slate-300 rounded-xl text-xs font-black active:scale-95 transition-all"
+                    }, "إلغاء")
+                )
+            )
+        ),
+
+        // ── مودال تأكيد حذف المستند (BUG-14 FIX) ──
+        confirmDeleteDoc && React.createElement('div', {className: "fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-6"},
+            React.createElement('div', {className: "bg-premium-card border border-rose-500/20 rounded-3xl p-6 w-full max-w-sm slide-up shadow-2xl"},
+                React.createElement('div', {className: "w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center text-2xl mx-auto mb-4"}, "📄"),
+                React.createElement('h3', {className: "text-sm font-black text-white text-center mb-2"}, "حذف المستند"),
+                React.createElement('p', {className: "text-xs text-slate-400 text-center mb-5 leading-relaxed"},
+                    "\"" + confirmDeleteDoc.file_name + "\"\n\nسيُحذف من التخزين وقاعدة البيانات ولا يمكن التراجع."
+                ),
+                React.createElement('div', {className: "flex gap-3"},
+                    React.createElement('button', {
+                        onClick: async () => {
+                            const doc = confirmDeleteDoc;
+                            setConfirmDeleteDoc(null);
+                            await handleDeleteDoc(doc);
+                        },
+                        className: "flex-1 py-3 bg-rose-500 text-white rounded-xl text-xs font-black active:scale-95 transition-all"
+                    }, "نعم، احذف"),
+                    React.createElement('button', {
+                        onClick: () => setConfirmDeleteDoc(null),
                         className: "flex-1 py-3 bg-white/5 text-slate-300 rounded-xl text-xs font-black active:scale-95 transition-all"
                     }, "إلغاء")
                 )
