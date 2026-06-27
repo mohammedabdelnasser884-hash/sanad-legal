@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast, escapeHtml, safeUpdate } from '../../utils';
 import { COUNTRY_CONFIGS } from '../../constants';
 
