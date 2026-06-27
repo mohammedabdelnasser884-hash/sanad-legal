@@ -7,7 +7,7 @@ import { I, COUNTRY_CONFIGS } from '../constants';
 import PdfViewerModal from './PdfViewerModal';
 
 
-function ArchiveTab({db, cases, clients}){
+function ArchiveTab({cases, clients}){
     const [allDocs, setAllDocs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQ, setSearchQ] = useState('');
