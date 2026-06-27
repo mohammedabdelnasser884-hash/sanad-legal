@@ -63,11 +63,6 @@ function App() {
         return () => listener.subscription.unsubscribe();
     }, [loadProfile]);
 
-    useEffect(() => {
-        if (authUser !== null || authLoading) return;
-        setAuthLoading(false);
-    }, [authUser, authLoading]);
-
     // ── ضبط tenant_id الحالي لكل قراءات/كتابات office_settings —
     // لازم يحصل قبل أي نداء لـ loadOfficeSetting/saveOfficeSetting، وكمان
     // عند تسجيل الخروج (profile=null) عشان منفضلش شايلين tenant قديم في
@@ -177,21 +172,22 @@ function App() {
     }, [nav]);
 
     const { handleLogout, handleSaveCase, handleDeleteCase, handleUpdateCase } = useCaseActions({
-        db, sendTelegram, fetchCases, cases, lawyers, clients, selectedCase,
+        sendTelegram, fetchCases, cases, lawyers, clients, selectedCase,
         setCases, setLawyers, setClients, setProfile, setAuthUser,
         setSelectedCase, setDeleteConfirm, setSavingCase, setShowCaseModal,
-        casesFilter, nav,
+        casesFilter, nav, profile,
     });
     const { handleSaveClient, handleDeleteClient, handleUpdateClient, handleSaveLawyer } = useClientActions({
-        db, sendTelegram, fetchClients, fetchLawyers, clients, clientSearch,
+        sendTelegram, fetchClients, fetchLawyers, clients, clientSearch,
         setClients, setSelectedClient, setDeleteConfirm, setSavingClient,
-        setSavingLawyer, setShowClientModal, setShowLawyerModal, nav,
+        setSavingLawyer, setShowClientModal, setShowLawyerModal, nav, profile,
     });
 
-    useAutoLogout(profile, () => {
+    const handleAutoLogout = useCallback(() => {
         setCases([]); setLawyers([]); setClients([]);
         setProfile(null); setAuthUser(null);
-    });
+    }, []);
+    useAutoLogout(profile, handleAutoLogout);
 
     const isAdmin = profile?.role === 'admin';
 
@@ -221,23 +217,28 @@ function App() {
             } catch { setDbOnline(false); }
             finally { clearTimeout(timeoutId); }
         };
+        // named handlers عشان removeEventListener يشتغل صح —
+        // arrow function جديدة في كل مرة مش بتتشال بـ removeEventListener
+        const handleOffline = () => setDbOnline(false);
         check();
         const interval = setInterval(check, 30000);
         window.addEventListener('online',  check);
-        window.addEventListener('offline', () => setDbOnline(false));
+        window.addEventListener('offline', handleOffline);
         return () => {
             clearInterval(interval);
             window.removeEventListener('online',  check);
-            window.removeEventListener('offline', () => setDbOnline(false));
+            window.removeEventListener('offline', handleOffline);
         };
     }, [profile]);
 
     // ── Initial data fetch ────────────────────────────────────
     useEffect(() => {
-        if (profile) { fetchCases(0, casesFilter); fetchLawyers(); fetchClients(0, clientSearch); }
-    }, [profile]);
-    useEffect(() => {
-        if (profile) { fetchTodaySessions(); fetchUpcomingSessions(); fetchMissedSessions(); fetchTasks(); }
+        if (!profile) return;
+        // Priority 1 — dashboard-critical (today's sessions, missed, tasks)
+        Promise.all([fetchTodaySessions(), fetchMissedSessions(), fetchTasks()]);
+        // Priority 2 — secondary data
+        Promise.all([fetchCases(0, casesFilter), fetchClients(0, clientSearch), fetchUpcomingSessions(), fetchLawyers()]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [profile]);
 
     // ─────────────────────────────────────────────────────────
@@ -287,7 +288,7 @@ function App() {
         clientsPage, setClientsPage, clientsTotal, clientsLoading,
         fetchClients, setSelectedClient, setShowClientModal,
     });
-    const DocsTab = React.createElement(ArchiveTab, { db, cases, clients });
+    const DocsTab = React.createElement(ArchiveTab, { cases, clients });
 
     const showMenu = showHeaderMenu;
 
@@ -372,7 +373,7 @@ function App() {
                     }, React.createElement('span', { className: 'text-sm' }, '⚡'), 'إضافة جلسة')
                 ),
                 React.createElement(SessionsCalendar, {
-                    db, cases, clients,
+                    cases, clients,
                     onOpenCase: (c: any) => { setSelectedCase(c, 'timeline'); },
                     onOpenReminders: () => { setRemindersInitialFilter('overdue'); setTab('reminders'); },
                     onNotify: sendTelegram,
@@ -388,11 +389,11 @@ function App() {
                         className: 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-premium-gold/10 border border-premium-gold/25 text-premium-gold text-[10px] font-black active:scale-95 transition-all hover:bg-premium-gold/15'
                     }, '📊 الملخص المالي')
                 ),
-                React.createElement(FeesTab, { db, cases, clients, showSummaryModal: showFeesSummary, setShowSummaryModal: setShowFeesSummary, country })
+                React.createElement(FeesTab, { cases, clients, showSummaryModal: showFeesSummary, setShowSummaryModal: setShowFeesSummary, country })
             ),
             tab === 'reminders' && React.createElement('div', { className: 'space-y-4 fade-in' },
                 React.createElement('h3', { className: 'text-sm font-black text-white' }, '🔔 التذكيرات المخصصة'),
-                React.createElement(RemindersTab, { db, initialFilter: remindersInitialFilter })
+                React.createElement(RemindersTab, { initialFilter: remindersInitialFilter })
             ),
             tab === 'team' && (isAdmin
                 ? TeamTabContent
@@ -400,7 +401,7 @@ function App() {
             ),
             tab === 'documents' && DocsTab,
             tab === 'admin' && (isAdmin
-                ? React.createElement(AdminPanel, { db, profile, lawyers, clients, fetchLawyers })
+                ? React.createElement(AdminPanel, { profile, lawyers, clients, fetchLawyers })
                 : React.createElement('div', { className: 'flex flex-col items-center justify-center pt-24 gap-3' },
                     React.createElement('div', { className: 'w-14 h-14 rounded-2xl bg-red-500/10 flex items-center justify-center' },
                         React.createElement(I.Shield, { className: 'w-7 h-7 text-red-400' })
@@ -524,7 +525,7 @@ function App() {
 
         // ── Modals ────────────────────────────────────────────
         showSearch && React.createElement(UniversalSearchModal, {
-            cases, clients, db,
+            cases, clients,
             onClose: () => setShowSearch(false),
             onOpenCase: (c: any) => { setSelectedCase(c, 'timeline'); },
             onOpenClient: (c: any) => { setSelectedClient(c); setTab('clients'); }
