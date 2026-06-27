@@ -25,5 +25,5 @@ export function useAutoLogout(
       clearTimeout(timer);
       events.forEach(e => window.removeEventListener(e, resetTimer));
     };
-  },[profile]);
+  },[profile, onLogout]);
 }
