@@ -1,8 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import { toast } from '../../utils';
-import { callAdminAction } from '../../supabaseClient';
+import { callAdminAction, db } from '../../supabaseClient';
 
-export function useAdminLegalLibrary(db: any) {
+export function useAdminLegalLibrary() {
   const [laws, setLaws] = useState<any[]>([]);
   const [legalCategories, setLegalCategories] = useState<any[]>([]);
   const [loadingLaws, setLoadingLaws] = useState(false);
