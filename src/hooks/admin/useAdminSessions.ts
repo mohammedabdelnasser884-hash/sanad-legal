@@ -3,6 +3,7 @@ import { toast, detectDevice, logActivity } from '../../utils';
 import { callAdminAction, db } from '../../supabaseClient';
 
 export function useAdminSessions(section: string | null, profile: any) {
+  const _userName = profile?.full_name || null;
   const [activeSessions, setActiveSessions] = useState([]);
   const [loadingSessions, setLoadingSessions] = useState(false);
   const [terminatingSession, setTerminatingSession] = useState(null);
@@ -57,7 +58,7 @@ export function useAdminSessions(section: string | null, profile: any) {
         await callAdminAction({ action: 'force_signout', user_id: sess.userId });
       }
       toast('✅ تم إنهاء جلسة ' + sess.name);
-      logActivity(db, 'إنهاء جلسة مستخدم', { entity_type: 'user', entity_id: sess.userId, details: sess.name, userName: profile?.full_name || null });
+      logActivity(db, 'إنهاء جلسة مستخدم', { userName: _userName, entity_type: 'user', entity_id: sess.userId, details: sess.name });
       fetchActiveSessions();
     } catch(e) {
       toast('❌ فشل إنهاء الجلسة', true);
@@ -83,7 +84,7 @@ export function useAdminSessions(section: string | null, profile: any) {
     setTerminatingAll(false);
     setConfirmTerminateAll(false);
     toast(failed > 0 ? `✅ تم إنهاء ${count} جلسة، فشل ${failed}` : `✅ تم إنهاء ${count} جلسة`);
-    logActivity(db, 'إنهاء جميع الجلسات', { entity_type: 'user', details: `${count} جلسة`, userName: profile?.full_name || null });
+    logActivity(db, 'إنهاء جميع الجلسات', { userName: _userName, entity_type: 'user', details: `${count} جلسة` });
     fetchActiveSessions();
   };
 
