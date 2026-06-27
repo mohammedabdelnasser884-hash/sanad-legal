@@ -11,6 +11,8 @@ export function useDashboardFeed(profile: any) {
     const [upcomingTasks, setUpcomingTasks]   = useState([]); // due_date >= اليوم، غير منجزة
     const [missedTasks,   setMissedTasks]     = useState([]); // due_date < اليوم، غير منجزة
     const [upcomingTasksOpen, setUpcomingTasksOpen] = useState(false); // مقفول افتراضياً
+    const [todayOpen,         setTodayOpen]         = useState(true);
+    const [upcomingOpen,      setUpcomingOpen]      = useState(true);
 
     const [dbOnline, setDbOnline] = useState(null); // null=checking, true=online, false=offline
     const [casesFilter, setCasesFilter] = useState('نشطة');
