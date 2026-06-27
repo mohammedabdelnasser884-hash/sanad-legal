@@ -1,3 +1,4 @@
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 /**
  * useNavigation — Simple & Predictable Back-Button Navigation
  * -----------------------------------------------------------
@@ -14,7 +15,6 @@
  * The popstate handler decides what to do based on current React state.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
