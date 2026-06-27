@@ -108,8 +108,8 @@ function ArchiveTab({db, cases, clients}){
 
     // ترتيب
     filtered = [...filtered].sort((a,b) => {
-        if (sortBy === 'date_desc') return new Date(b.created_at) - new Date(a.created_at);
-        if (sortBy === 'date_asc') return new Date(a.created_at) - new Date(b.created_at);
+        if (sortBy === 'date_desc') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        if (sortBy === 'date_asc') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
         if (sortBy === 'name') return (a.file_name||'').localeCompare(b.file_name||'');
         if (sortBy === 'size') return (b.file_size||0) - (a.file_size||0);
         return 0;
