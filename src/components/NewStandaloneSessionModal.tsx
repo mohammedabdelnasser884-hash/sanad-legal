@@ -86,61 +86,66 @@ export default function NewStandaloneSessionModal({ onClose, onSaved, onNotify }
     const handleSave = async () => {
         if (!form.session_date) { toast('⚠️ تاريخ الجلسة مطلوب', true); return; }
         setSaving(true);
-        const { error } = await db.from('case_sessions').insert([{
-            case_id: null,
-            session_date: form.session_date,
-            session_time: form.session_time || null,
-            session_floor: form.session_floor || null,
-            session_hall: form.session_hall || null,
-            title: form.title || null,
-            case_number: form.case_number || null,
-            court: form.court || null,
-            case_type: form.case_type || null,
-            plaintiff: form.plaintiff || null,
-            plaintiff_national_id: form.plaintiff_national_id || null,
-            plaintiff_power_of_attorney: form.plaintiff_power_of_attorney || null,
-            defendant: form.defendant || null,
-            defendant_national_id: form.defendant_national_id || null,
-            description: form.description || null,
-            result: form.result || null,
-            next_action: form.next_action || null,
-        }]);
-        setSaving(false);
+        try {
+            const { error } = await db.from('case_sessions').insert([{
+                case_id: null,
+                session_date: form.session_date,
+                session_time: form.session_time || null,
+                session_floor: form.session_floor || null,
+                session_hall: form.session_hall || null,
+                title: form.title || null,
+                case_number: form.case_number || null,
+                court: form.court || null,
+                case_type: form.case_type || null,
+                plaintiff: form.plaintiff || null,
+                plaintiff_national_id: form.plaintiff_national_id || null,
+                plaintiff_power_of_attorney: form.plaintiff_power_of_attorney || null,
+                defendant: form.defendant || null,
+                defendant_national_id: form.defendant_national_id || null,
+                description: form.description || null,
+                result: form.result || null,
+                next_action: form.next_action || null,
+            }]);
 
-        if (error) {
-            // لو العمود مش موجود، نعرض رسالة مفيدة
-            if (error.message?.includes('column')) {
-                toast('❌ تحقق من أعمدة الجدول — راجع SQL أدناه', true);
-            } else {
-                toast('❌ فشل الحفظ، يرجى المحاولة مرة أخرى', true);
+            if (error) {
+                toast('❌ فشل الحفظ: ' + (error.message || 'خطأ غير معروف'), true);
+                return;
             }
-            return;
-        }
 
-        // إشعار تيليجرام
-        if (onNotify) {
-            let msg = `📅 <b>جلسة مستقلة جديدة</b>\n\n`;
-            if (form.title) msg += `⚖️ <b>${escapeTelegramHtml(form.title)}</b>\n`;
-            if (form.case_number) msg += `📋 رقم القضية: ${escapeTelegramHtml(form.case_number)}\n`;
-            if (form.court) msg += `🏛 المحكمة: ${escapeTelegramHtml(form.court)}\n`;
-            msg += `📆 تاريخ الجلسة: ${escapeTelegramHtml(form.session_date)}`;
-            if (form.session_time) msg += ` (${escapeTelegramHtml(form.session_time)})`;
-            msg += `\n`;
-            if (form.plaintiff) msg += `👤 المدعي: ${escapeTelegramHtml(form.plaintiff)}\n`;
-            if (form.defendant) msg += `👤 المدعى عليه: ${escapeTelegramHtml(form.defendant)}\n`;
-            if (form.session_floor || form.session_hall)
-                msg += `📍 ${form.session_floor ? 'الطابق ' + escapeTelegramHtml(form.session_floor) + ' ' : ''}${form.session_hall ? 'قاعة ' + escapeTelegramHtml(form.session_hall) : ''}\n`;
-            if (form.description) msg += `📝 ${escapeTelegramHtml(form.description)}\n`;
-            onNotify(msg);
-        }
+            // إشعار تيليجرام
+            try {
+                if (onNotify) {
+                    let msg = `📅 <b>جلسة مستقلة جديدة</b>\n\n`;
+                    if (form.title) msg += `⚖️ <b>${escapeTelegramHtml(form.title)}</b>\n`;
+                    if (form.case_number) msg += `📋 رقم القضية: ${escapeTelegramHtml(form.case_number)}\n`;
+                    if (form.court) msg += `🏛 المحكمة: ${escapeTelegramHtml(form.court)}\n`;
+                    msg += `📆 تاريخ الجلسة: ${escapeTelegramHtml(form.session_date)}`;
+                    if (form.session_time) msg += ` (${escapeTelegramHtml(form.session_time)})`;
+                    msg += `\n`;
+                    if (form.plaintiff) msg += `👤 المدعي: ${escapeTelegramHtml(form.plaintiff)}\n`;
+                    if (form.defendant) msg += `👤 المدعى عليه: ${escapeTelegramHtml(form.defendant)}\n`;
+                    if (form.session_floor || form.session_hall)
+                        msg += `📍 ${form.session_floor ? 'الطابق ' + escapeTelegramHtml(form.session_floor) + ' ' : ''}${form.session_hall ? 'قاعة ' + escapeTelegramHtml(form.session_hall) : ''}\n`;
+                    if (form.description) msg += `📝 ${escapeTelegramHtml(form.description)}\n`;
+                    onNotify(msg);
+                }
+            } catch { /* تيليجرام اختياري */ }
 
-        logActivity(db, 'إضافة جلسة مستقلة', {
-            entity_type: 'session',
-            details: form.session_date || null,
-        });
-        toast('✅ تمت إضافة الجلسة المستقلة');
-        onSaved();
-        onClose();
+            try {
+                logActivity(db, 'إضافة جلسة مستقلة', {
+                    entity_type: 'session',
+                    details: form.session_date || null,
+                });
+            } catch { /* activity log اختياري */ }
+
+            toast('✅ تمت إضافة الجلسة المستقلة');
+            onSaved();
+            onClose();
+        } catch (ex: any) {
+            toast('❌ حدث خطأ غير متوقع، حاول مرة أخرى', true);
+        } finally {
+            setSaving(false);
+        }
     };
 
     const modal = React.createElement('div', {
