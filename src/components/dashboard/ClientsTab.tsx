@@ -78,6 +78,7 @@ function ClientsTab({ cases, clients, clientSearch, setClientSearch, clientsPage
         ref: searchRef,
         type:"text", value:clientSearch,
         onChange: handleSearchChange,
+        maxLength:100,
         placeholder:"🔍 ابحث بالاسم أو الموبايل أو الرقم القومي...",
         className:"w-full p-3 pr-4 text-xs rounded-xl border border-white/10 bg-premium-card text-white placeholder-slate-500 transition-colors",
         style:{fontFamily:'Cairo,sans-serif'}
