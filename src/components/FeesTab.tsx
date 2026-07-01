@@ -20,7 +20,7 @@ function FeesTab({cases, clients, showSummaryModal, setShowSummaryModal, country
       // ── قيم محسوبة من الـ hook (مركزية — لا تُعاد هنا) ──
       fmt, fmtDate,
       feesByCategory, feesSections, feesAfterCategoryFilter, filteredFees,
-      grandTotal, grandPaid, grandRemaining,
+      grandTotal, grandPaid, grandRemaining, loadingSummary,
     } = useFeesActions(cases, clients, country, profile);
 
     const [detailsFor, setDetailsFor] = useState(null); // معرف بطاقة الأتعاب المفتوحة تفاصيلها
@@ -357,8 +357,8 @@ function FeesTab({cases, clients, showSummaryModal, setShowSummaryModal, country
         showSummaryModal && createPortal(React.createElement('div',{
             className:"fixed z-50 bg-premium-card border-t border-premium-gold/20 rounded-t-3xl overflow-y-auto no-scrollbar shadow-2xl",
             style:{
-                top:'calc(64px + env(safe-area-inset-top, 0px))',
-                bottom:'calc(80px + env(safe-area-inset-bottom, 0px))',
+                top:'calc(var(--app-header-h, 64px) + env(safe-area-inset-top, 0px))',
+                bottom:'calc(var(--app-navbar-h, 80px) + env(safe-area-inset-bottom, 0px))',
                 left:0, right:0,
             },
             onClick:e=>e.stopPropagation()
@@ -372,15 +372,15 @@ function FeesTab({cases, clients, showSummaryModal, setShowSummaryModal, country
                 // الأرقام الكبيرة
                 React.createElement('div',{className:"grid grid-cols-3 gap-3 text-center"},
                     React.createElement('div',{className:"bg-white/5 rounded-2xl p-3"},
-                        React.createElement('p',{className:"text-[15px] font-black text-white leading-tight"},fmt(grandTotal)),
+                        React.createElement('p',{className:"text-[15px] font-black text-white leading-tight"},loadingSummary?'…':fmt(grandTotal)),
                         React.createElement('p',{className:"text-[8px] text-slate-500 mt-0.5 font-bold"},"إجمالي الاتفاقات")
                     ),
                     React.createElement('div',{className:"bg-emerald-500/10 rounded-2xl p-3"},
-                        React.createElement('p',{className:"text-[15px] font-black text-emerald-400 leading-tight"},fmt(grandPaid)),
+                        React.createElement('p',{className:"text-[15px] font-black text-emerald-400 leading-tight"},loadingSummary?'…':fmt(grandPaid)),
                         React.createElement('p',{className:"text-[8px] text-slate-500 mt-0.5 font-bold"},"المحصّل فعلياً")
                     ),
                     React.createElement('div',{className:"bg-rose-500/10 rounded-2xl p-3"},
-                        React.createElement('p',{className:"text-[15px] font-black text-rose-400 leading-tight"},fmt(grandRemaining)),
+                        React.createElement('p',{className:"text-[15px] font-black text-rose-400 leading-tight"},loadingSummary?'…':fmt(grandRemaining)),
                         React.createElement('p',{className:"text-[8px] text-slate-500 mt-0.5 font-bold"},"المتبقي")
                     )
                 ),
@@ -458,8 +458,8 @@ function FeesTab({cases, clients, showSummaryModal, setShowSummaryModal, country
             React.createElement('div',{
                 className:"fixed z-[70] bg-premium-card border-t border-premium-gold/20 rounded-t-3xl overflow-y-auto no-scrollbar p-5 space-y-3 shadow-2xl",
                 style:{
-                    top:'calc(64px + env(safe-area-inset-top, 0px))',
-                    bottom:'calc(80px + env(safe-area-inset-bottom, 0px))',
+                    top:'calc(var(--app-header-h, 64px) + env(safe-area-inset-top, 0px))',
+                    bottom:'calc(var(--app-navbar-h, 80px) + env(safe-area-inset-bottom, 0px))',
                     left:0, right:0,
                 },
                 onClick:e=>e.stopPropagation()
@@ -580,8 +580,8 @@ function FeesTab({cases, clients, showSummaryModal, setShowSummaryModal, country
                         detailsFor===fee.id && createPortal(React.createElement('div',{
                             className:"fixed z-50 bg-premium-card border-t border-white/10 rounded-t-3xl shadow-2xl overflow-y-auto",
                             style:{
-                                top:'calc(64px + env(safe-area-inset-top, 0px))',
-                                bottom:'calc(80px + env(safe-area-inset-bottom, 0px))',
+                                top:'calc(var(--app-header-h, 64px) + env(safe-area-inset-top, 0px))',
+                                bottom:'calc(var(--app-navbar-h, 80px) + env(safe-area-inset-bottom, 0px))',
                                 left:0, right:0,
                             },
                             onClick:e=>e.stopPropagation()
@@ -796,7 +796,7 @@ function FeesTab({cases, clients, showSummaryModal, setShowSummaryModal, country
         // ─ مودال تأكيد حذف الأتعاب الرئيسية ─
         confirmDeleteFee && React.createElement('div',{
             className:"fixed z-50",
-            style:{top:'calc(64px + env(safe-area-inset-top, 0px))', bottom:'calc(80px + env(safe-area-inset-bottom, 0px))', left:0, right:0, background:'rgba(0,0,0,0.7)'},
+            style:{top:'calc(var(--app-header-h, 64px) + env(safe-area-inset-top, 0px))', bottom:'calc(var(--app-navbar-h, 80px) + env(safe-area-inset-bottom, 0px))', left:0, right:0, background:'rgba(0,0,0,0.7)'},
             onClick:()=>setConfirmDeleteFee(null)
         },
             React.createElement('div',{
@@ -826,7 +826,7 @@ function FeesTab({cases, clients, showSummaryModal, setShowSummaryModal, country
         // ─ مودال تأكيد حذف الدفعة ─
         confirmDeletePay && React.createElement('div',{
             className:"fixed z-50",
-            style:{top:'calc(64px + env(safe-area-inset-top, 0px))', bottom:'calc(80px + env(safe-area-inset-bottom, 0px))', left:0, right:0, background:'rgba(0,0,0,0.7)'},
+            style:{top:'calc(var(--app-header-h, 64px) + env(safe-area-inset-top, 0px))', bottom:'calc(var(--app-navbar-h, 80px) + env(safe-area-inset-bottom, 0px))', left:0, right:0, background:'rgba(0,0,0,0.7)'},
             onClick:()=>setConfirmDeletePay(null)
         },
             React.createElement('div',{
@@ -854,7 +854,7 @@ function FeesTab({cases, clients, showSummaryModal, setShowSummaryModal, country
         // ─ مودال معاينة الفاتورة (bottom sheet مضغوط) ─
         invoiceModal && createPortal(React.createElement('div',{
             className:"fixed z-[60] flex items-center justify-center px-3",
-            style:{background:'rgba(0,0,0,0.6)', top:'64px', bottom:'82px', left:0, right:0},
+            style:{background:'rgba(0,0,0,0.6)', top:'var(--app-header-h, 64px)', bottom:'var(--app-navbar-h, 80px)', left:0, right:0},
             onClick:()=>{ const fid=invoiceModal?.fee?.id||null; setInvoiceModal(null); setDetailsFor(fid); }
         },
             React.createElement('div',{
