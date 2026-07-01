@@ -353,6 +353,7 @@ setInterval(() => { __runOfflineSyncIfNeeded(); }, 60000);
         try {
             let error = null;
             let insertedRow: any = null;
+            let updatedRow: any = null;
             if (type === 'INSERT') {
                 if (returning) {
                     // بنرجّع الصف المُدرج فعليًا (بدل ما نسيب الكولر يخمّن الـ id
@@ -378,11 +379,18 @@ setInterval(() => { __runOfflineSyncIfNeeded(); }, 60000);
                         }
                     }
                 }
-                ({ error } = await db.from(table).update(data).eq('id', id));
+                // FIX: بنرجّع updated_at الجديد بعد التحديث (بدل ما نسيب الكولر
+                // فاكر updated_at القديم اللي جابها هو). من غير ده، أي تعديل
+                // تاني على نفس السجل بعد التعديل الأول مباشرة كان هيتكشف غلط
+                // كـ"تعارض" مع نفسه (لأن آخر updated_at محفوظة عنده محليًا
+                // هتفضل أقدم من اللي فعليًا في السيرفر بعد أول تعديل ناجح).
+                const res = await db.from(table).update(data).eq('id', id).select('updated_at').single();
+                error = res.error;
+                updatedRow = res.data;
             } else if (type === 'DELETE') {
                 ({ error } = await db.from(table).delete().eq('id', id));
             }
-            return { error, offline: false, data: insertedRow };
+            return { error, offline: false, data: insertedRow || updatedRow };
         } catch {
             // الشبكة بتقول أونلاين بس الطلب فشل فعليًا — نحاول نحفظ محليًا
             const saved = await window.__offlineEnqueue({ type, table, data, id, knownUpdatedAt });
