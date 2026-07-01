@@ -183,14 +183,29 @@ export function useCaseActions(params: {
                 secretary_hall: form.secretary_hall || null,
                 secretary_name: form.secretary_name || null,
             };
-            const { error, offline, queued } = await window.__dbWrite({
-                type: 'UPDATE', table: 'cases', data: payload, id: caseId
+            // FIX: Optimistic Locking لتعديل القضايا — كان `updated_at` بيتجاب
+            // ويتخزّن في الـ state (شوف useAppData.ts) خصيصًا للاستخدام هنا، بس
+            // مكانش بيتبعت فعليًا لـ __dbWrite، فحماية "تعارض التعديل" كانت
+            // معطّلة تمامًا لتعديل القضايا (بعكس الأتعاب/الموكلين/الجلسات).
+            const existingCase = cases.find((c: any) => c.id === caseId);
+            const knownUpdatedAt = existingCase?.updated_at
+                || (selectedCase?.id === caseId ? selectedCase?.updated_at : null)
+                || null;
+
+            const { error, offline, queued, conflict, data: writtenRow } = await window.__dbWrite({
+                type: 'UPDATE', table: 'cases', data: payload, id: caseId, knownUpdatedAt
             });
             if (offline && queued) {
                 toast('📥 التعديل محفوظ محلياً — سيُزامن عند عودة الإنترنت');
                 // تحديث فوري في الـ state المحلي
                 setCases((prev: any[]) => prev.map((c: any) => c.id === caseId ? { ...c, ...form } : c));
                 if (selectedCase?.id === caseId) setSelectedCase((p: any) => ({ ...p, ...form }));
+            } else if (conflict) {
+                // 💥 حد تاني عدّل نفس القضية بعد ما إحنا فتحناها — منرفضش نكتب
+                // فوق تعديله بصمت. بنسيب البيانات المعروضة زي ما هي ونطلب من
+                // المستخدم يفتح القضية تاني عشان يشوف آخر نسخة قبل ما يعدّل.
+                toast('⚠️ هذه القضية عدّلها شخص آخر بعد ما فتحتها — أعد فتحها وحاول التعديل مرة أخرى', true);
+                return;
             } else if (error) {
                 toast('❌ فشل تعديل بيانات القضية — تحقق من الاتصال وأعد المحاولة', true);
                 return;
@@ -227,8 +242,13 @@ export function useCaseActions(params: {
                     client_name: clients.find((cl: any) => cl.id === payload.client_id)?.full_name || null,
                 });
                 // تحديث فوري للحالة المحلية — عشان الشاشة المفتوحة (CaseDetailView) تعرض القيم الجديدة فورًا
-                setCases((prev: any[]) => prev.map((c: any) => c.id === caseId ? { ...c, ...form } : c));
-                if (selectedCase?.id === caseId) setSelectedCase((p: any) => ({ ...p, ...form }));
+                // ⚠️ بنحدّث updated_at كمان من قيمة السيرفر الفعلية بعد الكتابة (writtenRow) —
+                // من غيرها، أي تعديل تاني على نفس القضية بعد التعديل ده مباشرة كان
+                // هيتكشف غلط كـ"تعارض" مع نفسه (لأن آخر updated_at محفوظة محليًا
+                // كانت هتفضل القديمة من قبل الحفظ، مش الجديدة بعده).
+                const freshFields = writtenRow?.updated_at ? { updated_at: writtenRow.updated_at } : {};
+                setCases((prev: any[]) => prev.map((c: any) => c.id === caseId ? { ...c, ...form, ...freshFields } : c));
+                if (selectedCase?.id === caseId) setSelectedCase((p: any) => ({ ...p, ...form, ...freshFields }));
                 // إشعار تليجرام - تعديل قضية
                 let updMsg = `✏️ <b>تم تعديل بيانات قضية</b>\n`;
                 updMsg += `━━━━━━━━━━━━━━━━━━━━\n`;
