@@ -47,7 +47,16 @@ export function useAIAssistant(cases: any[], clients: any[], profile: any, count
     const userId = profile?.id || profile?.user_id || 'guest';
     const TOPICS_KEY = `sanad_ai_topics_v2_${userId}`;
     const loadTopics = () => { try { return JSON.parse(localStorage.getItem(TOPICS_KEY)||'[]'); } catch(e){ return []; } };
-    const saveTopics = (t) => { try { localStorage.setItem(TOPICS_KEY, JSON.stringify(t)); } catch(e){} };
+    const saveTopics = (t) => {
+        try {
+            localStorage.setItem(TOPICS_KEY, JSON.stringify(t));
+        } catch (e: any) {
+            // ⚠️ FIX: كان بيتجاهل الخطأ بصمت — لو localStorage ممتلئة أو
+            // في وضع تصفح خاص، المستخدم كان بيفقد تاريخ محادثاته من غير
+            // أي تنبيه. تسجيل في الكونسول على الأقل يسهّل تشخيص المشكلة.
+            console.warn('[AI Assistant] تعذر حفظ مواضيع المحادثة محليًا:', e?.message || e);
+        }
+    };
 
     const [topics, setTopics] = useState(() => loadTopics());
     const [activeTopicId, setActiveTopicId] = useState(() => { const t = loadTopics(); return t.length > 0 ? t[0].id : null; });
