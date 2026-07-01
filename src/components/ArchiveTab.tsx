@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { toast, validateUploadFile, logActivity } from '../utils';
+import { toast, validateUploadFile, logActivity, ilikeOrClause } from '../utils';
 import { Inp, Sel } from './shared';
 import { createPortal } from 'react-dom';
 import { db } from '../supabaseClient';
@@ -27,6 +27,9 @@ function ArchiveTab({cases, clients}){
     const [deletingId, setDeletingId]     = useState(null);
     const [sortBy, setSortBy]             = useState('date_desc');
     const fileInputRef = useRef(null);
+    // FIX: كان البحث بيبعت طلب لقاعدة البيانات مع كل حرف بدون أي debounce
+    // (بعكس باقي شاشات البحث في المشروع زي FeesTab/ClientsTab/RemindersTab)
+    const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const CATS = ['الكل','مذكرة دفاع','صحيفة دعوى','حكم قضائي','عقد','توكيل','مستند رسمي','صورة','أخرى'];
 
@@ -46,7 +49,14 @@ function ArchiveTab({cases, clients}){
 
         if (search.trim()) {
             const s = search.trim();
-            q = q.or(`file_name.ilike.%${s}%,original_name.ilike.%${s}%,category.ilike.%${s}%`);
+            // FIX: كان بيبني فلتر .or() بstring خام — فاصلة أو قوس في نص
+            // البحث كان بيكسر صياغة الفلتر. دلوقتي بنستخدم ilikeOrClause
+            // اللي بتحط القيمة بين علامتي اقتباس وتهرّبها زي ما PostgREST محتاج.
+            q = q.or([
+                ilikeOrClause('file_name', s),
+                ilikeOrClause('original_name', s),
+                ilikeOrClause('category', s),
+            ].join(','));
         }
         if (cat !== 'الكل') {
             q = q.eq('category', cat);
@@ -68,8 +78,13 @@ function ArchiveTab({cases, clients}){
 
     const handleSearchChange = (val: string) => {
         setSearchQ(val);
-        fetchDocs(0, val, filterCat, sortBy, false);
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+        searchDebounceRef.current = setTimeout(() => fetchDocs(0, val, filterCat, sortBy, false), 300);
     };
+
+    useEffect(() => {
+        return () => { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); };
+    }, []);
 
     const handleCatChange = (cat: string) => {
         setFilterCat(cat);
@@ -214,6 +229,7 @@ function ArchiveTab({cases, clients}){
                 React.createElement('input',{
                     type:"text", value:searchQ,
                     onChange:e=>handleSearchChange(e.target.value),
+                    maxLength:100,
                     placeholder:"ابحث في المستندات والتصنيفات...",
                     className:"w-full p-3 pr-10 text-xs rounded-xl border border-white/10 bg-premium-card text-white placeholder-slate-500 transition-colors",
                     style:{fontFamily:'Cairo,sans-serif'}
