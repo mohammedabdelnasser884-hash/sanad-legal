@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { toast, escapeHtml, safeUpdate, logActivity } from '../../utils';
+import { toast, escapeHtml, safeUpdate, logActivity, ilikeOrClause } from '../../utils';
 import { COUNTRY_CONFIGS } from '../../constants';
 import { db } from '../../supabaseClient';
 
@@ -89,7 +89,8 @@ export function useFeesActions(cases: any[], clients: any[], country?: string, p
 
         if (search.trim()) {
             const s = search.trim();
-            q = q.or(`client_name.ilike.%${s}%,notes.ilike.%${s}%`);
+            // FIX: فاصلة أو قوس في نص البحث كان بيكسر صياغة فلتر .or()
+            q = q.or([ilikeOrClause('client_name', s), ilikeOrClause('notes', s)].join(','));
         }
 
         const { data, error, count } = await q;
