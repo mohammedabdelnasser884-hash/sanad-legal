@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { db } from '../supabaseClient';
 import { recordError, recordSuccess } from '../systemHealth';
+import { ilikeOrClause } from '../utils';
 
 // ── FIX (2.2): بناء خريطة "أقرب جلسة" الصحيحة لكل قضية ──
 // ⚠️ قبل الإصلاح ده، كان بيتم الترتيب تنازليًا وأخذ أول ظهور — يعني
@@ -132,15 +133,16 @@ export function useAppData(profile: any) {
         const q = term.trim();
 
         // البحث في: عنوان الدعوى، رقم الدعوى، المدعي، المدعى عليه، موضوع الدعوى — في كل الحالات
+        // FIX: فاصلة أو قوس في نص البحث كان بيكسر صياغة فلتر .or()
         const { data, error, count } = await db
             .from('cases')
             .select('*', { count: 'exact' })
-            .or(
-                `title.ilike.%${q}%,` +
-                `case_number_official.ilike.%${q}%,` +
-                `plaintiff.ilike.%${q}%,` +
-                `defendant.ilike.%${q}%`
-            )
+            .or([
+                ilikeOrClause('title', q),
+                ilikeOrClause('case_number_official', q),
+                ilikeOrClause('plaintiff', q),
+                ilikeOrClause('defendant', q),
+            ].join(','))
             .order('created_at', { ascending: false })
             .limit(50);
 
@@ -210,9 +212,12 @@ export function useAppData(profile: any) {
 
         if (search.trim()) {
             const s = search.trim();
-            query = query.or(
-                `client_name.ilike.%${s}%,phone.ilike.%${s}%,national_id.ilike.%${s}%`
-            );
+            // FIX: فاصلة أو قوس في نص البحث كان بيكسر صياغة فلتر .or()
+            query = query.or([
+                ilikeOrClause('client_name', s),
+                ilikeOrClause('phone', s),
+                ilikeOrClause('national_id', s),
+            ].join(','));
         }
 
         const { data, error, count } = await query;
