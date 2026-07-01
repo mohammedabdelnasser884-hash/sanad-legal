@@ -806,6 +806,7 @@ export default function AdminPanel({ profile, lawyers, clients, fetchLawyers }: 
         React.createElement('input',{
           value:clientSearch,
           onChange:e=>setClientSearch(e.target.value),
+          maxLength:100,
           placeholder:"🔍 ابحث باسم الموكل...",
           className:"w-full p-3 pr-4 text-xs rounded-xl border border-white/10 bg-premium-card text-white placeholder-slate-500",
           style:{fontFamily:'Cairo,sans-serif'}
@@ -857,6 +858,7 @@ export default function AdminPanel({ profile, lawyers, clients, fetchLawyers }: 
         React.createElement('input',{
           value: activitySearchInput,
           onChange: e => handleActivitySearchChange(e.target.value),
+          maxLength: 100,
           placeholder:"🔍 بحث في السجلات...",
           className:"w-full p-2.5 pr-4 text-xs rounded-xl border border-white/10 bg-premium-card text-white placeholder-slate-500",
           style:{fontFamily:'Cairo,sans-serif'}
