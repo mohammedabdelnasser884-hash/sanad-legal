@@ -1,9 +1,30 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { I, SanadMark } from '../../constants';
 
+// ── FIX: نشر الارتفاع الفعلي للهيدر كـ CSS variable مركزية (--app-header-h) ──
+// ⚠️ قبل الإصلاح ده، أماكن زي مودالات FeesTab.tsx كانت بتفترض رقم ثابت
+// (64px) لارتفاع الهيدر عشان تحسب مكانها (top). الرقم ده مش مضمون يطابق
+// الارتفاع الحقيقي (بيعتمد على المحتوى/padding)، فكان بيسبب تداخل أو
+// فراغ بين الهيدر والمحتوى. دلوقتي بنقيس الارتفاع الفعلي بـ ResizeObserver
+// وننشره كـ CSS variable على document.documentElement، وأي مكان تاني في
+// المشروع محتاج "ارتفاع الهيدر" بيقرأ var(--app-header-h) بدل ما يخمّن رقم.
 function AppHeader({ profile, setShowMenu, setShowSearch, isAdmin, fetchCases, casesFilter, loadingCases }: any) {
+  const headerRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const publish = () => {
+      document.documentElement.style.setProperty('--app-header-h', `${el.offsetHeight}px`);
+    };
+    publish();
+    const ro = new ResizeObserver(publish);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   return (
-    React.createElement('header',{className:"w-full bg-premium-card/80 backdrop-blur-lg border-b border-white/5 px-4 py-2.5 shrink-0 z-40 sticky top-0 relative"},
+    React.createElement('header',{ref:headerRef, className:"w-full bg-premium-card/80 backdrop-blur-lg border-b border-white/5 px-4 py-2.5 shrink-0 z-40 sticky top-0 relative"},
         // ── الصف الوحيد: أفاتار + اسم + بحث + هامبرغر (هامبرغر على اليسار) ──
         React.createElement('div',{className:"flex items-center gap-2.5"},
             // أفاتار + اسم + رول
