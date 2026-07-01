@@ -37,8 +37,27 @@ function FeesTab({cases, clients, showSummaryModal, setShowSummaryModal, country
     // ── حالة أيقونة البحث القابلة للفتح في الهيدر ──
     const [searchOpen, setSearchOpen] = useState(false);
     const searchInputRef = useRef(null);
+    // ── FIX (تصحيح لملاحظة سابقة كانت غلط): البحث هنا كان بيبعت طلب لقاعدة
+    // البيانات مع كل حرف بدون أي debounce فعلي — الـ setTimeout الوحيد
+    // الموجود قبل كده كان بس لعمل focus على الخانة، مش لتأخير البحث.
+    // دلوقتي فيه state محلي للعرض الفوري (searchInput) بينفصل عن feesSearch
+    // (اللي فعليًا بيشغّل الاستعلام جوه useFeesActions)، وبنأخر تحديث
+    // feesSearch بـ 300ms بعد آخر حرف.
+    const [searchInput, setSearchInput] = useState(feesSearch);
+    const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => {
+        return () => { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); };
+    }, []);
+    const handleSearchInputChange = (val: string) => {
+        setSearchInput(val);
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+        searchDebounceRef.current = setTimeout(() => setFeesSearch(val), 300);
+    };
     const handleSearchOpen = () => { setSearchOpen(true); setTimeout(()=>searchInputRef.current?.focus(), 50); };
-    const handleSearchClose = () => { setFeesSearch(''); setSearchOpen(false); };
+    const handleSearchClose = () => {
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+        setSearchInput(''); setFeesSearch(''); setSearchOpen(false);
+    };
     // ── عملة الدولة المختارة في الإعدادات (افتراضي جنيه مصري) ──
     const currency = COUNTRY_CONFIGS[country||'EG']?.currency || 'جنيه مصري';
 
@@ -326,8 +345,9 @@ function FeesTab({cases, clients, showSummaryModal, setShowSummaryModal, country
                     React.createElement('input',{
                         ref:searchInputRef,
                         type:"text",
-                        value:feesSearch,
-                        onChange:e=>setFeesSearch(e.target.value),
+                        value:searchInput,
+                        onChange:e=>handleSearchInputChange(e.target.value),
+                        maxLength:100,
                         placeholder:"اسم الموكل أو القضية...",
                         dir:"rtl",
                         className:"flex-1 bg-transparent text-[11px] text-white placeholder-slate-500 outline-none min-w-0"
