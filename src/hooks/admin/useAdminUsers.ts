@@ -69,11 +69,24 @@ export function useAdminUsers(fetchLawyers: () => void, profile?: any) {
     const { error } = await db.from('profiles').update({ is_active: newState }).eq('id', user.id);
     if (error) { toast('❌ حدث خطأ، يرجى المحاولة مرة أخرى', true); return; }
 
+    let signoutFailed = false;
     if (!newState && user.user_id) {
-      try { await callAdminAction({ action: 'force_signout', user_id: user.user_id }); } catch(e) {}
+      try {
+        await callAdminAction({ action: 'force_signout', user_id: user.user_id });
+      } catch (e: any) {
+        // ⚠️ FIX: كان الكود بيبلع الخطأ بصمت وبيدّي رسالة نجاح مطلقة
+        // ("تم تعطيل الحساب وإنهاء جلساته") حتى لو فشل إنهاء الجلسات
+        // فعليًا. دلوقتي بنسجّل الخطأ ونوضّح للأدمن إن الحساب اتعطّل
+        // بس الجلسات الحالية ممكن تكون لسه شغالة.
+        console.error('[AdminUsers] فشل إنهاء جلسات المستخدم:', e?.message || e);
+        signoutFailed = true;
+      }
     }
 
-    toast(newState ? '✅ تم تفعيل الحساب' : '⚠️ تم تعطيل الحساب وإنهاء جلساته');
+    toast(newState
+      ? '✅ تم تفعيل الحساب'
+      : (signoutFailed ? '⚠️ تم تعطيل الحساب، لكن تعذر إنهاء جلساته الحالية' : '⚠️ تم تعطيل الحساب وإنهاء جلساته')
+    );
     logActivity(db, newState ? 'تفعيل مستخدم' : 'تعطيل مستخدم', { userName: _userName, entity_type: 'user', entity_id: user.id, details: user.full_name || null });
     fetchLawyers();
   };
