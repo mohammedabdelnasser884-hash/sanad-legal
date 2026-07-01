@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { db } from '../../supabaseClient';
+import { ilikeOrClause } from '../../utils';
 
 export function useAdminActivity() {
   const ACTIVITY_PAGE_SIZE = 30;
@@ -18,11 +19,19 @@ export function useAdminActivity() {
 
       // بحث حر على حقول النص
       if (filters.search?.trim()) {
-        const s = '%' + filters.search.trim() + '%';
+        const s = filters.search.trim();
         // ⚠️ يعتمد على أعمدة client_name/case_name/case_type — لازم ميجريشن
         // activity-log-tags-migration.sql تكون اتنفذت في Supabase، وإلا
         // هيرمي خطأ من بوستجريس يخلي الاستعلام كله يفشل بصمت.
-        q = q.or(`action.ilike.${s},details.ilike.${s},user_name.ilike.${s},client_name.ilike.${s},case_name.ilike.${s},case_type.ilike.${s}`);
+        // FIX: فاصلة أو قوس في نص البحث كان بيكسر صياغة فلتر .or()
+        q = q.or([
+          ilikeOrClause('action', s),
+          ilikeOrClause('details', s),
+          ilikeOrClause('user_name', s),
+          ilikeOrClause('client_name', s),
+          ilikeOrClause('case_name', s),
+          ilikeOrClause('case_type', s),
+        ].join(','));
       }
 
       // فلتر المستخدم بالـ id
