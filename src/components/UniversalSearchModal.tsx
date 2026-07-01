@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { db } from '../supabaseClient';
 import { I } from '../constants';
+import { ilikeOrClause } from '../utils';
 import PdfViewerModal from './PdfViewerModal';
 
 // ── مدة الانتظار قبل ما نبعت الـ query للـ DB (ms) ──
@@ -54,7 +55,12 @@ function UniversalSearchModal({ cases, clients, onClose, onOpenCase, onOpenClien
                         .limit(LIMIT),
                     db.from('case_sessions')
                         .select('id,case_id,session_date,description,result,next_action')
-                        .or(`description.ilike.${pattern},result.ilike.${pattern},next_action.ilike.${pattern}`)
+                        // FIX: فاصلة أو قوس في نص البحث كان بيكسر صياغة فلتر .or()
+                        .or([
+                            ilikeOrClause('description', trimmed),
+                            ilikeOrClause('result', trimmed),
+                            ilikeOrClause('next_action', trimmed),
+                        ].join(','))
                         .order('session_date', { ascending: false })
                         .limit(LIMIT),
                     db.from('case_notes')
@@ -149,6 +155,7 @@ function UniversalSearchModal({ cases, clients, onClose, onOpenCase, onOpenClien
                         ref: inputRef,
                         type: 'text', value: q,
                         onChange: e => { setQ(e.target.value); setActiveFilter('all'); },
+                        maxLength: 100,
                         placeholder: 'ابحث في كل شيء — قضايا، جلسات، ملاحظات...',
                         className: 'w-full p-3 pr-10 text-xs rounded-2xl border border-premium-gold/20 bg-premium-bg text-white placeholder-slate-500 transition-colors',
                         style: { fontFamily: 'Cairo,sans-serif' }
