@@ -92,7 +92,7 @@ async function getCaller(req: Request) {
 }
 
 async function getCallerProfile(callerId: string) {
-  const rows = await rest(`profiles?user_id=eq.${callerId}&select=role,tenant_id,is_super_admin&limit=1`);
+  const rows = await rest(`profiles?user_id=eq.${callerId}&select=role,tenant_id,is_super_admin,is_active&limit=1`);
   return Array.isArray(rows) ? rows[0] : null;
 }
 
@@ -118,6 +118,12 @@ Deno.serve(async (req: Request) => {
 
     const caller = await getCallerProfile(callerUser.id);
     if (!caller) return json({ error: 'حساب غير معروف' }, 403);
+    // FIX: كان الفحص ده غايب هنا رغم إنه موجود في الـ helper المشترك
+    // (_shared/auth.ts) وفي ai-chat — يعني أدمن اتعمله تعطيل (is_active:false)
+    // كان يقدر يفضل يغيّر باسوردات ويعمل حسابات جديدة لحد ما جلسته تنتهي
+    // بنفسها، طالما محدش عمله force_signout يدويًا. أخطر function في
+    // المشروع (تغيير باسورد/إنشاء حساب) كانت أضعف حماية من ai-chat نفسه.
+    if (caller.is_active === false) return json({ error: 'الحساب معطّل' }, 403);
 
     // ── تسجيل خروج من جميع الأجهزة ──
     if (action === 'force_signout') {
