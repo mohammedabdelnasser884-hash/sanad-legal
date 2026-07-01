@@ -32,6 +32,31 @@ export function useFeesActions(cases: any[], clients: any[], country?: string, p
     const [feesTotal, setFeesTotal] = useState(0);
     const [feesMore, setFeesMore]   = useState(false);
 
+    // ── FIX: الملخص المالي الإجمالي (كل الأتعاب، مش الصفحة الحالية) ──
+    // ⚠️ قبل الإصلاح ده، "الملخص المالي الإجمالي" في الواجهة كان بيتحسب من
+    // مصفوفة `fees` المحلية بس — واللي هي مُقيَّدة بالـ pagination (15 سجل)
+    // وبفلتر الحالة الحالي (مؤجلة/مفتوحة/محصّلة) بسبب طريقة fetchFees.
+    // يعني المستخدم كان بيشوف مجموع أول 15 سجل من التاب المفتوح بس، مش
+    // إجمالي كل الأتعاب فعليًا. هنا بنجيب SUM حقيقي من القاعدة لكل الصفوف
+    // (بدون range ولا فلتر status)، بعمودين رقميين بس (خفيف على الشبكة).
+    const [grandTotalAll, setGrandTotalAll] = useState(0);
+    const [grandPaidAll,  setGrandPaidAll]  = useState(0);
+    const [loadingSummary, setLoadingSummary] = useState(false);
+
+    const fetchGrandSummary = useCallback(async () => {
+        if (!profile) return;
+        setLoadingSummary(true);
+        const { data, error } = await db.from('case_fees').select('total_fees,paid_fees');
+        if (error) { setLoadingSummary(false); return; }
+        const t = (data || []).reduce((s: number, f: any) => s + (f.total_fees || 0), 0);
+        const p = (data || []).reduce((s: number, f: any) => s + (f.paid_fees  || 0), 0);
+        setGrandTotalAll(t);
+        setGrandPaidAll(p);
+        setLoadingSummary(false);
+    }, [profile]);
+
+    useEffect(() => { fetchGrandSummary(); }, [fetchGrandSummary]);
+
     // ── عملة الدولة المختارة ──
     const currency = COUNTRY_CONFIGS[country||'EG']?.currency || 'جنيه مصري';
 
@@ -197,6 +222,7 @@ export function useFeesActions(cases: any[], clients: any[], country?: string, p
         setSaving(false);
         setShowForm(false); setForm({case_id:'',client_id:'',client_name_manual:'',client_name_text:'',receiver:'',total:'',paid:'',payment_date:'',notes:''}); setEditId(null);
         fetchFees(0, feesFilter, feesSearch, false);
+        fetchGrandSummary();
     };
 
     const handleAddPayment = async (fee) => {
@@ -240,7 +266,7 @@ export function useFeesActions(cases: any[], clients: any[], country?: string, p
         if(resolvedClientName || resolvedClientId){ upd.client_name = resolvedClientName; upd.client_id = resolvedClientId; }
         if(payDate) upd.last_payment_date = payDate;
         const { error: updateError } = await db.from('case_fees').update(upd).eq('id',fee.id);
-        if(updateError){ toast('⚠️ تم تسجيل الدفعة لكن فشل تحديث إجمالي المدفوع، يرجى تحديث الصفحة', true); fetchFees(0, feesFilter, feesSearch, false); return; }
+        if(updateError){ toast('⚠️ تم تسجيل الدفعة لكن فشل تحديث إجمالي المدفوع، يرجى تحديث الصفحة', true); fetchFees(0, feesFilter, feesSearch, false); fetchGrandSummary(); return; }
         toast('✅ تم تسجيل الدفعة');
         logActivity(db, 'تسجيل دفعة', {
             entity_type: 'fee', entity_id: fee.id,
@@ -251,6 +277,7 @@ export function useFeesActions(cases: any[], clients: any[], country?: string, p
         });
         setAddPaymentFor(null); setPayAmount(''); setPayDate(''); setPayNote(''); setPayReceiver(''); setPayClientName(''); setPayClientNameText('');
         fetchFees(0, feesFilter, feesSearch, false);
+        fetchGrandSummary();
     };
 
     const handleDeletePayment = async (payId, fee) => {
@@ -261,7 +288,7 @@ export function useFeesActions(cases: any[], clients: any[], country?: string, p
         // FIX (1.3): لو حذف الدفعة رجّع المتبقي أعلى من صفر، لازم status
         // ترجع "مؤجلة" أو "مفتوحة" تاني بدل ما تفضل "محصّلة" غلط.
         const { error: updateError } = await db.from('case_fees').update({paid_fees: realPaid, status: computeFeeStatus(fee.total_fees, realPaid)}).eq('id',fee.id);
-        if(updateError){ toast('⚠️ تم حذف الدفعة لكن فشل تحديث إجمالي المدفوع، يرجى تحديث الصفحة', true); fetchFees(0, feesFilter, feesSearch, false); return; }
+        if(updateError){ toast('⚠️ تم حذف الدفعة لكن فشل تحديث إجمالي المدفوع، يرجى تحديث الصفحة', true); fetchFees(0, feesFilter, feesSearch, false); fetchGrandSummary(); return; }
         toast('🗑 تم حذف الدفعة');
         logActivity(db, 'حذف دفعة', {
             entity_type: 'fee', entity_id: fee.id, details: fee.client_name || null,
@@ -270,6 +297,7 @@ export function useFeesActions(cases: any[], clients: any[], country?: string, p
             case_type: cases.find((c: any) => c.id === fee.case_id)?.type || null,
         });
         fetchFees(0, feesFilter, feesSearch, false);
+        fetchGrandSummary();
     };
 
     const handleDelete = async (id) => {
@@ -286,6 +314,7 @@ export function useFeesActions(cases: any[], clients: any[], country?: string, p
             case_type: cases.find((c: any) => c.id === targetFee?.case_id)?.type || null,
         });
         fetchFees(0, feesFilter, feesSearch, false);
+        fetchGrandSummary();
     };
 
     const fmt = n => n?.toLocaleString('ar-SA',{maximumFractionDigits:0})||'0';
@@ -330,7 +359,10 @@ export function useFeesActions(cases: any[], clients: any[], country?: string, p
         },
     ];
 
-    // إجماليات الصفحة الحالية فقط
+    // ⚠️ إجماليات الصفحة الحالية فقط (اللي معروضة دلوقتي في القايمة) —
+    // مش الإجمالي الكلي لكل الأتعاب. مفيدة لو حبينا نعرض "مجموع الصفحة"
+    // في مكان تاني مستقبلاً، لكن لازم متتستخدمش كـ"إجمالي عام" — استخدم
+    // grandTotalAll/grandPaidAll تحت بدلها لأي عرض إجمالي شامل.
     const totalAll  = fees.reduce((s,f:any)=>s+(f.total_fees||0),0);
     const paidAll   = fees.reduce((s,f:any)=>s+(f.paid_fees||0),0);
     const remaining = totalAll - paidAll;
@@ -340,9 +372,11 @@ export function useFeesActions(cases: any[], clients: any[], country?: string, p
     const feesAfterCategoryFilter = fees;
     const feesByCategory = { collected: [], deferred: [], open: [] }; // deprecated
 
-    const grandTotal     = totalAll;
-    const grandPaid      = paidAll;
-    const grandRemaining = remaining;
+    // FIX: الملخص المالي الإجمالي بيعتمد دلوقتي على grandTotalAll/grandPaidAll
+    // (SUM حقيقي من القاعدة لكل صفوف case_fees) بدل مجموع الصفحة الحالية.
+    const grandTotal     = grandTotalAll;
+    const grandPaid      = grandPaidAll;
+    const grandRemaining = grandTotalAll - grandPaidAll;
 
   return {
     fees, setFees, payments, setPayments, expandedPayments, setExpandedPayments,
@@ -367,7 +401,7 @@ export function useFeesActions(cases: any[], clients: any[], country?: string, p
     filteredFees,
 
     totalAll, paidAll, remaining,
-    grandTotal, grandPaid, grandRemaining,
+    grandTotal, grandPaid, grandRemaining, loadingSummary, fetchGrandSummary,
     fmt, fmtDate,
   };
 }
