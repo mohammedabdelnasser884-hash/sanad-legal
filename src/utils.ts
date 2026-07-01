@@ -14,6 +14,23 @@ export function escapeHtml(value: unknown): string {
 }
 
 // ══════════════════════════════════════════════════════════════
+//  ilikeOrClause — بناء شرط ilike آمن للاستخدام جوه .or() بتاع PostgREST
+//  ⚠️ المشكلة: .or(`col.ilike.%${term}%`) بيكسر لو term فيه فاصلة "," أو
+//  قوس "(" أو ")" — PostgREST بيفسّرهم كجزء من صياغة الفلتر نفسها (فاصل
+//  بين شروط الـ OR، أو تجميع)، مش كجزء من نص البحث. النتيجة: خطأ في
+//  الاستعلام، أو (الأخطر) تفسير جزء من نص المستخدم كشرط فلتر إضافي.
+//  الحل الموثّق في PostgREST: أي قيمة فلتر فيها حروف محجوزة (, . : ( ))
+//  لازم تتحاط بين علامتي اقتباس مزدوجتين "..."، مع تهريب أي backslash
+//  أو علامة اقتباس مزدوجة جوه القيمة نفسها بـ backslash.
+//  الاستخدام: q.or([ilikeOrClause('client_name', s), ilikeOrClause('notes', s)].join(','))
+// ══════════════════════════════════════════════════════════════
+export function ilikeOrClause(column: string, term: string): string {
+    const pattern = `%${term}%`;
+    const escaped = pattern.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    return `${column}.ilike."${escaped}"`;
+}
+
+// ══════════════════════════════════════════════════════════════
 //  escapeTelegramHtml — تهريب نص قبل دمجه في رسالة Telegram بصيغة
 //  parse_mode: 'HTML'. تيليجرام بيدعم مجموعة محدودة من التاجز
 //  (<b>, <i>, <a>...) وبيرفض الرسالة كلها لو فيه < أو > أو & غير
