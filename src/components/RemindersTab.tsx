@@ -522,6 +522,7 @@ function RemindersTab({initialFilter, profile=null}){
                             type:"text",
                             value:searchTerm,
                             onChange:(e:any)=>{ handleSearchChange(e.target.value); },
+                            maxLength:100,
                             placeholder:"ابحث في كل المهام...",
                             dir:"rtl",
                             className:"flex-1 bg-transparent text-[11px] text-white placeholder-slate-500 outline-none min-w-0"
