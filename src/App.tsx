@@ -44,10 +44,23 @@ function App() {
     const [authLoading,setAuthLoading]= useState(true);
 
     // ── Auth ──────────────────────────────────────────────────
+    // ⚠️ FIX: قبل كده كان الكود بيتجاهل error تحميل البروفايل تمامًا.
+    // لو المستخدم مسجّل دخول فعليًا في Supabase Auth بس صف البروفايل
+    // مش موجود (لسه ما اتضبطش) أو RLS رافضة القراءة، .single() كانت
+    // بترجع error والـ data بترجع undefined من غير أي رسالة — فالمستخدم
+    // كان بيترمى تاني على شاشة اللوجن من غير أي تفسير ليه (يبان "مش قادر
+    // أدخل" من غير سبب واضح). استخدمنا .maybeSingle() (مبترميش error لو
+    // الصف مش موجود) وبنعرض toast واضح لو حصل أي error فعلي (زي تكرار
+    // بيانات أو رفض RLS).
     const loadProfile = useCallback(async (user: any) => {
         if (!user) { setProfile(null); setAuthUser(null); return; }
         setAuthUser(user);
-        const { data } = await db.from('profiles').select('*').eq('user_id', user.id).single();
+        const { data, error } = await db.from('profiles').select('*').eq('user_id', user.id).maybeSingle();
+        if (error) {
+            toast('تعذر تحميل بيانات الحساب: ' + error.message);
+        } else if (!data) {
+            toast('لا يوجد ملف شخصي مرتبط بهذا الحساب — تواصل مع مدير المكتب');
+        }
         setProfile(data || null);
     }, []);
 
@@ -100,6 +113,39 @@ function App() {
     const [showMore,       setShowMore]       = useState(false);
     const [showHeaderMenu, setShowHeaderMenu] = useState(false);
     const [showFeesSummary,setShowFeesSummary]= useState(false);
+
+    // ── FIX: نشر الحيّز الفعلي اللي بياخده الشريط السفلي (Command Dock)
+    // كـ CSS variable مركزية (--app-navbar-h) بدل ما أي مكان تاني (زي
+    // مودالات FeesTab.tsx) يفترض رقم ثابت (80px) ممكن ميطابقش الحقيقة.
+    // بنقيس المسافة الفعلية من أسفل الشاشة لبداية الـ nav (getBoundingClientRect)
+    // — ده بيدي الحيّز الحقيقي المحجوز بغض النظر عن أي padding حواليه.
+    //
+    // ⚠️ FIX 2 (مهم): الـ <nav> ده بيتعرض بس بعد تسجيل الدخول (فيه early
+    // return لـ LoginScreen قبل ما يترسم). لو استخدمنا useRef عادي مع
+    // useEffect بـ dependency array فاضية [] زي الأول، الـ effect كان
+    // بيشتغل مرة واحدة بس عند أول commit — وده بيكون وقت شاشة اللوجن،
+    // يعني navRef.current بيبقى null والـ CSS variable متتنشرش أبدًا حتى
+    // بعد الدخول (فضل بيعتمد على الـ fallback الثابت 80px طول الوقت).
+    // الحل: callback ref بيتفعّل تلقائيًا لما العنصر فعليًا يترسم في الـ
+    // DOM (بعد اللوجن)، فالـ useEffect اللي بعده بيشتغل صح مع mount الحقيقي.
+    const [navEl, setNavEl] = useState<HTMLElement | null>(null);
+    const navRef = useCallback((el: HTMLElement | null) => setNavEl(el), []);
+    useEffect(() => {
+        if (!navEl) return;
+        const publish = () => {
+            const offset = window.innerHeight - navEl.getBoundingClientRect().top;
+            document.documentElement.style.setProperty('--app-navbar-h', `${Math.round(offset)}px`);
+        };
+        publish();
+        window.addEventListener('resize', publish);
+        const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(publish) : null;
+        ro?.observe(navEl);
+        return () => {
+            window.removeEventListener('resize', publish);
+            ro?.disconnect();
+        };
+    }, [navEl]);
+
     const [clientSearch,   setClientSearch]   = useState('');
     const [savingCase,     setSavingCase]     = useState(false);
     const [savingLawyer,   setSavingLawyer]   = useState(false);
@@ -460,6 +506,7 @@ function App() {
             }),
 
             React.createElement('nav', {
+                ref: navRef,
                 className: 'pointer-events-auto w-full max-w-sm h-[62px] flex items-center px-2 gap-0',
                 style: {
                     background: 'rgba(15,25,50,0.97)', backdropFilter: 'blur(28px) saturate(180%)',
