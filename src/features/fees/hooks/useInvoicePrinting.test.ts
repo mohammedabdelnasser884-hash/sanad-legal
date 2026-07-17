@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest';
 import type { CaseFeeRow, FeePaymentRow, ClientRow } from '../../../types';
 import type { MappedCase } from '../../../hooks/useAppData';
 import type { InvoiceModalState } from './useFeesActions';
@@ -279,7 +279,7 @@ function makeInvoiceState(overrides: Partial<InvoiceModalState> = {}): InvoiceMo
 
 describe('printInvoice', () => {
   let fakeWindow: ReturnType<typeof makeFakeWindow>;
-  let openSpy: ReturnType<typeof vi.spyOn>;
+  let openSpy: MockInstance<Window['open']>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -385,7 +385,7 @@ describe('printInvoice', () => {
 
 describe('printAllPayments', () => {
   let fakeWindow: ReturnType<typeof makeFakeWindow>;
-  let openSpy: ReturnType<typeof vi.spyOn>;
+  let openSpy: MockInstance<Window['open']>;
 
   beforeEach(() => {
     vi.clearAllMocks();
