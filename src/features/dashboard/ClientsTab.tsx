@@ -90,6 +90,7 @@ function ClientsTab({ cases, clients, clientSearch, setClientSearch, clientsPage
         }, React.createElement(SearchIcon)),
         React.createElement('button', {
           onClick: () => setShowClientModal(true),
+          'data-testid': 'new-client-button',
           className:"flex items-center bg-gradient-to-tr from-emerald-500 to-emerald-400 text-white px-3 py-2 rounded-xl text-xs font-black shadow-lg gap-1 active:scale-95 transition-transform"
         }, React.createElement(I.Plus), "موكل جديد")
       )
@@ -180,6 +181,7 @@ function ClientsTab({ cases, clients, clientSearch, setClientSearch, clientsPage
             return React.createElement('div',{
               key:c.id,
               onClick:()=>setSelectedClient(c),
+              'data-testid': 'client-card',
               className:"bg-premium-card border border-white/5 rounded-xl px-3 py-2.5 active:scale-[0.98] transition-all cursor-pointer"
             },
               React.createElement('div',{className:"flex items-center gap-2.5"},
