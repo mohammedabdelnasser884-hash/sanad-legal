@@ -73,6 +73,10 @@ export function useClientActions(params: {
     // (بيتغير حسب حقول الفورم)، وكل استخدام لعمود DB حقيقي في payload
     // اتوصل بنوع جدول clients الحقيقي.
     const handleSaveClient = async (form: ClientFormData, idFile: File | null, poaFile: File | null) => {
+        if (!form.full_name || !form.full_name.trim()) {
+            toast('❌ حقل "اسم الموكل" مطلوب', true);
+            return;
+        }
         setSavingClient(true);
         // رفع الصور على Storage (يحتاج نت — مش بنحفظه offline)
         let idUrl: string | null = null, poaUrl: string | null = null;
@@ -182,6 +186,10 @@ export function useClientActions(params: {
 
     // ─ تعديل موكل ─
     const handleUpdateClient = async (clientId: string, form: ClientFormData, idFile?: File | null, poaFile?: File | null) => {
+        if (!form.full_name || !form.full_name.trim()) {
+            toast('❌ حقل "اسم الموكل" مطلوب', true);
+            return;
+        }
         const client = clients.find((c) => c.id === clientId);
         const existingContactInfo = (client?.contact_info as ClientContactInfo | null) || null;
 
