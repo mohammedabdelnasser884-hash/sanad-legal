@@ -127,6 +127,28 @@ describe('useClientActions', () => {
     getCurrentTenantId.mockReturnValue('tenant-1');
   });
 
+  describe('handleSaveClient — فاليديشن الاسم', () => {
+    it('اسم فاضي → توست خطأ "حقل مطلوب"، مفيش أي __dbWrite', async () => {
+      const params = makeParams();
+      const { handleSaveClient } = useClientActions(params);
+
+      await handleSaveClient(makeForm({ full_name: '' }), null, null);
+
+      expect(toast).toHaveBeenCalledWith('❌ حقل "اسم الموكل" مطلوب', true);
+      expect(dbWriteMock()).not.toHaveBeenCalled();
+    });
+
+    it('اسم مسافات بس → نفس رفض الفاليديشن', async () => {
+      const params = makeParams();
+      const { handleSaveClient } = useClientActions(params);
+
+      await handleSaveClient(makeForm({ full_name: '   ' }), null, null);
+
+      expect(toast).toHaveBeenCalledWith('❌ حقل "اسم الموكل" مطلوب', true);
+      expect(dbWriteMock()).not.toHaveBeenCalled();
+    });
+  });
+
   describe('handleSaveClient', () => {
     it('نجاح بدون ملفات (offline: false, غير متصل مش مهم لأنه مفيش ملفات) → INSERT عن طريق __dbWrite، توست نجاح، تسجيل نشاط، تليجرام، وfetchClients', async () => {
       dbWriteMock().mockResolvedValue({ error: null, offline: false, queued: false });
@@ -331,6 +353,18 @@ describe('useClientActions', () => {
       expect(toast).toHaveBeenCalledWith('❌ فشل استرجاع الموكل — تحقق من الاتصال وأعد المحاولة', true);
       expect(logActivity).not.toHaveBeenCalled();
       expect(params.fetchClients).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('handleUpdateClient — فاليديشن الاسم', () => {
+    it('اسم فاضي → توست خطأ "حقل مطلوب"، مفيش أي safeUpdate', async () => {
+      const params = makeParams();
+      const { handleUpdateClient } = useClientActions(params);
+
+      await handleUpdateClient('client-1', makeForm({ full_name: '' }));
+
+      expect(toast).toHaveBeenCalledWith('❌ حقل "اسم الموكل" مطلوب', true);
+      expect(safeUpdate).not.toHaveBeenCalled();
     });
   });
 
