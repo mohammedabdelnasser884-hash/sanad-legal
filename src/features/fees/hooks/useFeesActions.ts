@@ -182,7 +182,10 @@ export function useFeesActions(cases: MappedCase[], clients: ClientRow[], countr
     };
 
     const handleSave = async () => {
-        if(!form.case_id||!form.total){ toast('يرجى اختيار القضية وإدخال إجمالي الأتعاب',true); return; }
+        if (!form.case_id) { toast('❌ حقل "القضية" مطلوب — يرجى اختيار القضية', true); return; }
+        const parsedTotal = parseFloat(form.total);
+        if (!form.total || isNaN(parsedTotal)) { toast('❌ حقل "إجمالي الأتعاب" مطلوب', true); return; }
+        if (parsedTotal < 0) { toast('❌ خطأ: إجمالي الأتعاب لا يمكن أن يكون سالباً', true); return; }
         setSaving(true);
         let clientId: string | null = null;
         let clientName: string | null = null;
@@ -200,7 +203,7 @@ export function useFeesActions(cases: MappedCase[], clients: ClientRow[], countr
             client_id: clientId,
             client_name: clientName,
             receiver: form.receiver||null,
-            total_fees: parseFloat(form.total)||0,
+            total_fees: parsedTotal,
             notes: form.notes||null,
         };
         if(editId){
