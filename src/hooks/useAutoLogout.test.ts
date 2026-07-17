@@ -13,13 +13,13 @@ import type { ProfileRow } from '../types';
 // ══════════════════════════════════════════════════════════════════
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 
-const signOut = vi.fn(() => Promise.resolve({ error: null }));
+const signOut = vi.fn((..._args: unknown[]) => Promise.resolve({ error: null }));
 vi.mock('../supabaseClient', () => ({ db: { auth: { signOut: (...a: unknown[]) => signOut(...a) } } }));
 
 const toast = vi.fn();
 vi.mock('../shared/lib/notifications', () => ({ toast: (...a: unknown[]) => toast(...a) }));
 
-const logActivity = vi.fn(() => Promise.resolve());
+const logActivity = vi.fn((..._args: unknown[]) => Promise.resolve());
 vi.mock('../shared/lib/dataAccess', () => ({ logActivity: (...a: unknown[]) => logActivity(...a) }));
 
 const PROFILE = { id: 'p1', user_id: 'user-1', tenant_id: 't1' } as unknown as ProfileRow;
