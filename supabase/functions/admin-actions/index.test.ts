@@ -79,7 +79,14 @@ function buildFetchMock(state: FetchState) {
     {
       match: (url, init) => url.includes('/rest/v1/profiles') && init?.method === 'POST',
       respond: (_url, init) => {
-        state.createProfilePostCalls.push(JSON.parse(init!.body as string));
+        // ⚠️ index.ts بيبعت body كـ Array (`[{...}]`, أسلوب PostgREST القياسي
+        // للإدراج) — لازم نفكّه هنا قبل الحفظ، وإلا كل الأسيرشنز اللي بتقارن
+        // createProfilePostCalls[0] بـ toMatchObject({...}) هتفشل بنيويًا
+        // (بتقارن Array بـ Object عادي).
+        const parsedBody = JSON.parse(init!.body as string);
+        state.createProfilePostCalls.push(
+          Array.isArray(parsedBody) ? parsedBody[0] : parsedBody
+        );
         return state.createProfilePostOk
           ? { status: 201, body: [{ user_id: 'new-auth-user-1' }] }
           : { status: 400, body: { message: 'فشل إنشاء profile' } };
