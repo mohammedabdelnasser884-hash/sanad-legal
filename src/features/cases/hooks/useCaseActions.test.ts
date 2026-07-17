@@ -147,6 +147,29 @@ describe('useCaseActions', () => {
     });
   });
 
+  describe('handleSaveCase — فاليديشن العنوان', () => {
+    it('عنوان فاضي تماماً → توست خطأ "حقل مطلوب"، مفيش أي __dbWrite', async () => {
+      const params = makeParams();
+      const { handleSaveCase } = useCaseActions(params);
+
+      await handleSaveCase({ title: '' });
+
+      expect(toast).toHaveBeenCalledWith('❌ حقل "موضوع ومسمى الدعوى" مطلوب', true);
+      expect(dbWriteMock()).not.toHaveBeenCalled();
+      expect(params.setSavingCase).not.toHaveBeenCalledWith(true);
+    });
+
+    it('عنوان مسافات بس (بدون trim) → نفس رفض الفاليديشن', async () => {
+      const params = makeParams();
+      const { handleSaveCase } = useCaseActions(params);
+
+      await handleSaveCase({ title: '    ' });
+
+      expect(toast).toHaveBeenCalledWith('❌ حقل "موضوع ومسمى الدعوى" مطلوب', true);
+      expect(dbWriteMock()).not.toHaveBeenCalled();
+    });
+  });
+
   describe('handleSaveCase', () => {
     it('نجاح أونلاين مع تاريخ جلسة → INSERT في case_sessions بـ id القضية الحقيقي من نتيجة الإدراج، وتوست نجاح + تليجرام + fetchCases', async () => {
       dbWriteMock().mockResolvedValue({
@@ -309,6 +332,19 @@ describe('useCaseActions', () => {
       expect(toast).toHaveBeenCalledWith('❌ فشل استرجاع القضية — تحقق من الاتصال وأعد المحاولة', true);
       expect(logActivity).not.toHaveBeenCalled();
       expect(params.fetchCases).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('handleUpdateCase — فاليديشن العنوان', () => {
+    it('عنوان فاضي → توست خطأ "حقل مطلوب"، مفيش أي __dbWrite', async () => {
+      const existingCase = makeCase({ id: 'case-1' });
+      const params = makeParams({ cases: [existingCase], selectedCase: existingCase });
+      const { handleUpdateCase } = useCaseActions(params);
+
+      await handleUpdateCase('case-1', { title: '' });
+
+      expect(toast).toHaveBeenCalledWith('❌ حقل "موضوع ومسمى الدعوى" مطلوب', true);
+      expect(dbWriteMock()).not.toHaveBeenCalled();
     });
   });
 
