@@ -31,5 +31,12 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: false,
+    // ⚠️ ملفات e2e/*.spec.ts بتستورد test/expect من '@playwright/test' مش من
+    // vitest، ولازم تتشغل حصريًا عن طريق `playwright test` (npm run test:e2e).
+    // من غير الاستثناء ده، vitest بيلقطها تلقائيًا (لأنها بتطابق pattern
+    // الـ include الافتراضي بتاعه لـ *.spec.ts) ويحاول يفسّرها بنفسه،
+    // فبيطلع خطأ "calling test() from an async describe block" لأن
+    // Playwright بتوقع تتحمّل من خلال test runner بتاعها هي مش أي loader تاني.
+    exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**'],
   },
 })
