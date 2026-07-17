@@ -68,8 +68,8 @@ vi.mock('../../../../shared/lib/notifications', () => ({ toast: (...a: unknown[]
 const logActivity = vi.fn();
 vi.mock('../../../../shared/lib/dataAccess', () => ({ logActivity: (...a: unknown[]) => logActivity(...a) }));
 
-const validateUploadFile = vi.fn(() => null as string | null);
-const resolveStorageUrl = vi.fn(() => Promise.resolve('https://signed.example/logo.png' as string | null));
+const validateUploadFile = vi.fn((_file: { name: string; size: number }) => null as string | null);
+const resolveStorageUrl = vi.fn((_bucket: string, _pathOrUrl: string | null | undefined) => Promise.resolve('https://signed.example/logo.png' as string | null));
 vi.mock('../../../../shared/lib/storage', () => ({
   validateUploadFile: (...a: unknown[]) => validateUploadFile(...(a as [{ name: string; size: number }])),
   resolveStorageUrl: (...a: unknown[]) => resolveStorageUrl(...(a as [string, string | null | undefined])),
