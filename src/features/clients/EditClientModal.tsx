@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { toast } from '../../shared/lib/notifications';
 import { I } from '../../constants';
 import { Inp } from '@/shared/ui/Inp';
 import { Sel } from '@/shared/ui/Sel';
@@ -80,7 +81,7 @@ function EditClientModal({client: c, onClose, onSave}: EditClientModalProps) {
             ),
             React.createElement('div', {className:"space-y-4"},
                 // الاسم ونوع الموكل
-                React.createElement(Inp, {label:"الاسم الكامل", value:form.full_name, onChange:(e: React.ChangeEvent<HTMLInputElement>)=>s('full_name',e.target.value), placeholder:"اسم الموكل", required:true}),
+                React.createElement(Inp, {label:"الاسم الكامل", value:form.full_name, onChange:(e: React.ChangeEvent<HTMLInputElement>)=>s('full_name',e.target.value), placeholder:"اسم الموكل", required:true,'data-testid':'edit-client-name'}),
                 React.createElement('div', {className:"grid grid-cols-2 gap-3"},
                     React.createElement(Sel, {label:"نوع الموكل", value:form.type, onChange:(e: React.ChangeEvent<HTMLSelectElement>)=>s('type',e.target.value), options:[
                         {value:'individual', label:'فرد'},
@@ -140,7 +141,11 @@ function EditClientModal({client: c, onClose, onSave}: EditClientModalProps) {
 
                 // زر الحفظ
                 React.createElement('button', {
-                    onClick: () => { if(!form.full_name) return; onSave(form, idFile, poaFile); },
+                    'data-testid': 'save-client-edit-button',
+                    onClick: () => {
+                        if(!form.full_name || !form.full_name.trim()){ toast('يرجى إدخال اسم الموكل', true); return; }
+                        onSave(form, idFile, poaFile);
+                    },
                     className:"w-full py-3.5 bg-gradient-to-tr from-emerald-500 to-emerald-400 text-white rounded-xl font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform mt-2"
                 }, React.createElement(I.Check), "حفظ التعديلات")
             )

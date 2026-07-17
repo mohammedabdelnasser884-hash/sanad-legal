@@ -29,7 +29,7 @@ function ClientDetailModal({client:c, cases, onClose, onDelete, onEdit, onOpenCa
     const idImgUrl  = useResolvedStorageUrl('client-docs', contactInfo?.id_url);
     const poaImgUrl = useResolvedStorageUrl('client-docs', contactInfo?.poa_url);
 
-    return React.createElement('div',{className:"fixed inset-0 z-50 flex items-end justify-center bg-black/75 backdrop-blur-sm",onClick:(e: React.MouseEvent<HTMLDivElement>) =>{if(e.target===e.currentTarget)onClose();}},
+    return React.createElement('div',{'data-testid':'client-detail-view',className:"fixed inset-0 z-50 flex items-end justify-center bg-black/75 backdrop-blur-sm",onClick:(e: React.MouseEvent<HTMLDivElement>) =>{if(e.target===e.currentTarget)onClose();}},
         // عارض الصورة
         imgViewer&&React.createElement('div',{
             className:"fixed inset-0 z-[60] bg-black/95 flex items-center justify-center p-4",
@@ -48,6 +48,7 @@ function ClientDetailModal({client:c, cases, onClose, onDelete, onEdit, onOpenCa
                     React.createElement('div',{className:"flex items-center gap-2"},
                         React.createElement('button',{
                             onClick:()=>setShowEditClient(true),
+                            'data-testid': 'client-edit-trigger',
                             className:"w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-premium-gold hover:border-premium-gold/30 active:scale-90 transition-all"
                         },React.createElement(I.Edit)),
                         React.createElement('button',{

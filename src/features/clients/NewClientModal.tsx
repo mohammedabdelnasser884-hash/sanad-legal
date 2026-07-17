@@ -67,7 +67,7 @@ function NewClientModal({onClose,onSave,loading}: NewClientModalProps){
             ),
             React.createElement('div',{className:"space-y-4"},
                 // بيانات أساسية
-                React.createElement(Inp,{label:"الاسم الكامل",value:form.full_name,onChange:(e: React.ChangeEvent<HTMLInputElement>) =>s('full_name',e.target.value),placeholder:"مثال: محمد أحمد علي",required:true}),
+                React.createElement(Inp,{label:"الاسم الكامل",value:form.full_name,onChange:(e: React.ChangeEvent<HTMLInputElement>) =>s('full_name',e.target.value),placeholder:"مثال: محمد أحمد علي",required:true,'data-testid':'new-client-name'}),
                 React.createElement('div',{className:"grid grid-cols-2 gap-3"},
                     React.createElement(Sel,{label:"نوع الموكل",value:form.type,onChange:(e: React.ChangeEvent<HTMLSelectElement>) =>s('type',e.target.value),options:[
                         {value:'individual',label:'فرد'},
@@ -141,6 +141,7 @@ function NewClientModal({onClose,onSave,loading}: NewClientModalProps){
 
                 React.createElement('button',{
                     disabled:loading,
+                    'data-testid':'save-client-button',
                     onClick:()=>{
                         if(!form.full_name){toast('يرجى إدخال اسم الموكل',true);return;}
                         const warnings = [phoneWarn, phoneWarn2, emailWarn].filter(Boolean);
