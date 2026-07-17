@@ -125,6 +125,38 @@ describe('useFeesActions', () => {
     vi.clearAllMocks();
   });
 
+  describe('handleSave — فاليديشن', () => {
+    it('من غير اختيار قضية → توست "حقل مطلوب"، مفيش أي insert', async () => {
+      const { result } = await renderFeesHook();
+
+      act(() => { result.current.setForm({ ...result.current.form, case_id: '', total: '1000' }); });
+      await act(async () => { await result.current.handleSave(); });
+
+      expect(toast).toHaveBeenCalledWith('❌ حقل "القضية" مطلوب — يرجى اختيار القضية', true);
+      expect(mockDb.insertSpy).not.toHaveBeenCalled();
+    });
+
+    it('من غير إجمالي أتعاب → توست "حقل مطلوب"، مفيش أي insert', async () => {
+      const { result } = await renderFeesHook();
+
+      act(() => { result.current.setForm({ ...result.current.form, case_id: 'case-1', total: '' }); });
+      await act(async () => { await result.current.handleSave(); });
+
+      expect(toast).toHaveBeenCalledWith('❌ حقل "إجمالي الأتعاب" مطلوب', true);
+      expect(mockDb.insertSpy).not.toHaveBeenCalled();
+    });
+
+    it('إجمالي أتعاب سالب → توست خطأ، مفيش أي insert', async () => {
+      const { result } = await renderFeesHook();
+
+      act(() => { result.current.setForm({ ...result.current.form, case_id: 'case-1', total: '-500' }); });
+      await act(async () => { await result.current.handleSave(); });
+
+      expect(toast).toHaveBeenCalledWith('❌ خطأ: إجمالي الأتعاب لا يمكن أن يكون سالباً', true);
+      expect(mockDb.insertSpy).not.toHaveBeenCalled();
+    });
+  });
+
   describe('handleSave — إنشاء سجل أتعاب جديد', () => {
     it('من غير دفعة مقدّمة → INSERT بـ paid_fees=0 و status محسوبة من computeFeeStatus(total,0)', async () => {
       mockDb.setResult('case_fees:insert', { data: { id: 'new-fee-1' }, error: null });
