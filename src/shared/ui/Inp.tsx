@@ -6,6 +6,7 @@ import React from 'react';
 type InpOwnProps = {
     label?: string; type?: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     placeholder?: string; required?: boolean; className?: string; style?: React.CSSProperties;
+    'data-testid'?: string;
 };
 export const Inp = ({ label, type = "text", value, onChange, placeholder, required, className, style, ...rest }:
     InpOwnProps & Omit<React.InputHTMLAttributes<HTMLInputElement>, keyof InpOwnProps>
