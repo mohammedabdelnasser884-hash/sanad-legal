@@ -15,7 +15,15 @@ import type { ProfileRow, LawRow } from '../../../../types';
 //   - db.storage.from('legal-library').remove([path])                [handleDeleteLaw — لو فيه ملف]
 //   - db.from('laws').delete().eq('id', x)                           [handleDeleteLaw]
 // ══════════════════════════════════════════════════════════════════
-type Result = { data?: unknown; error?: { message?: string } | null };
+// موسّع بـ`reject`/`context` — نفس الشكلين اللي الكود فعليًا بيتحقق منهم وقت
+// التشغيل (كاست `as { reject?: boolean }` في mock الـstorage، وتوقيع
+// `EdgeFunctionError` الحقيقي في useAdminLegalLibrary.ts). النوع القديم كان
+// أضيق من الاستخدام الفعلي في التستات، مش تغيير في سلوك المحاكاة نفسها.
+type Result = {
+  data?: unknown;
+  error?: { message?: string; context?: { json?: () => Promise<{ error?: string } | null>; text?: () => Promise<string> } } | null;
+  reject?: boolean;
+};
 
 function makeMockDb() {
   const configured: Record<string, Result> = {};
