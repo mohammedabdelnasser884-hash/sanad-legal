@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import { expect } from '@playwright/test';
 
 // خطوة 2+ من مرحلة 7 (E2E) — هيلبر تسجيل دخول مشترك.
 // كل خطوة بعد الأولى محتاجة تعدّي شاشة الدخول الأول عشان توصل للشاشة
@@ -45,4 +46,13 @@ export async function createAndOpenCase(page: Page, title: string): Promise<void
   const card = page.getByTestId('case-card').filter({ hasText: title });
   await card.first().click();
   await page.getByTestId('case-detail-view').waitFor({ state: 'visible', timeout: 10_000 });
+}
+
+// خطوة 6 (فاليديشن) — التأكد من ظهور رسالة توست بنص معيّن ولونها بيطابق
+// حالة الخطأ (نفس آلية toast() في shared/lib/notifications.ts — بتلوّن
+// الحدود/النص بالأحمر #f87171 لما isErr=true، وبتضيف class 'show').
+export async function expectToast(page: Page, text: string): Promise<void> {
+  const toastEl = page.locator('#toast');
+  await expect(toastEl).toHaveClass(/show/, { timeout: 5_000 });
+  await expect(toastEl).toHaveText(text);
 }
