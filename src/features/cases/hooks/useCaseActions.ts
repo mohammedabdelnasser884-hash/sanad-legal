@@ -92,6 +92,10 @@ export function useCaseActions(params: {
     // وكل استخدام لعمود DB حقيقي (زي payload تحت) موصول بنوع الجدول الحقيقي
     // من database.types.ts.
     const handleSaveCase = async (form: CaseFormSubmitData) => {
+        if (!form.title || !form.title.trim()) {
+            toast('❌ حقل "موضوع ومسمى الدعوى" مطلوب', true);
+            return;
+        }
         setSavingCase(true);
         const payload = {
             case_number_official: form.number || null,
@@ -239,6 +243,10 @@ export function useCaseActions(params: {
 
     // ─ تعديل قضية ─
     const handleUpdateCase = async (caseId: string, form: CaseFormSubmitData) => {
+        if (!form.title || !form.title.trim()) {
+            toast('❌ حقل "موضوع ومسمى الدعوى" مطلوب', true);
+            return;
+        }
         try {
             const payload = {
                 case_number_official: form.number || null,
