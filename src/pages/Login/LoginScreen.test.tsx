@@ -36,7 +36,7 @@ let invokeImpl: (() => Promise<InvokeResult>) | null = null;
 const invoke = vi.fn((_fn: string, _opts: unknown) => (invokeImpl ? invokeImpl() : Promise.resolve(invokeResult)));
 
 let setSessionResult: { error: { message: string } | null } = { error: null };
-const setSession = vi.fn(() => Promise.resolve(setSessionResult));
+const setSession = vi.fn((..._args: unknown[]) => Promise.resolve(setSessionResult));
 
 vi.mock('../../supabaseClient', () => ({
   db: { functions: { invoke: (...a: [string, unknown]) => invoke(...a) }, auth: { setSession: (...a: unknown[]) => setSession(...a) } },
