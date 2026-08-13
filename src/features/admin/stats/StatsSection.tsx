@@ -1,6 +1,7 @@
 import React from 'react';
 import { formatArNumber } from '../../../shared/ui/arabicLocale';
 import { COUNTRY_CONFIGS } from '../../../constants';
+import type { MonthlyTrendPoint } from './hooks/useAdminStats';
 
 interface UserStats {
   total: number;
@@ -19,6 +20,7 @@ interface StatsSectionProps {
   collectedRate: number;
   loadingFeesStats: boolean;
   country: string;
+  monthlyTrend: MonthlyTrendPoint[];
 }
 
 const fmt = (n: number) => formatArNumber(n, { maximumFractionDigits: 0 });
@@ -72,8 +74,59 @@ const CasesGlyph = () => React.createElement('svg', { viewBox: '0 0 24 24', fill
 const ClientsGlyph = () => React.createElement('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '1.5' },
   React.createElement('path', { strokeLinecap: 'round', strokeLinejoin: 'round', d: 'M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z' }));
 
+// رسم بياني بسيط (أعمدة مزدوجة) لمقارنة "المستحق" بـ"المحصّل" شهريًا آخر
+// 6 شهور — SVG يدوي بنفس نمط باقي الملف، من غير أي مكتبة رسم بياني خارجية.
+const TREND_VB_W = 300, TREND_VB_H = 112, TREND_PLOT_H = 74, TREND_PLOT_TOP = 8;
+
+function TrendChart({ data }: { data: MonthlyTrendPoint[] }) {
+  const maxVal = Math.max(1, ...data.flatMap((d) => [d.total, d.paid]));
+  const hasAnyData = data.some((d) => d.total > 0 || d.paid > 0);
+  const groupW = TREND_VB_W / data.length;
+  const barGap = 3;
+  const barW = (groupW - barGap * 3) / 2;
+
+  const bars = data.flatMap((m, i) => {
+    const x0 = i * groupW + barGap;
+    const totalH = (m.total / maxVal) * TREND_PLOT_H;
+    const paidH  = (m.paid  / maxVal) * TREND_PLOT_H;
+    return [
+      React.createElement('rect', {
+        key: `t-${m.key}`, x: x0, y: TREND_PLOT_TOP + (TREND_PLOT_H - totalH),
+        width: barW, height: Math.max(totalH, 0.5), rx: 2,
+        fill: 'rgba(148,163,184,0.35)',
+      }),
+      React.createElement('rect', {
+        key: `p-${m.key}`, x: x0 + barW + barGap, y: TREND_PLOT_TOP + (TREND_PLOT_H - paidH),
+        width: barW, height: Math.max(paidH, 0.5), rx: 2,
+        fill: '#C9A84C',
+      }),
+      React.createElement('text', {
+        key: `l-${m.key}`, x: x0 + barW + barGap / 2, y: TREND_PLOT_TOP + TREND_PLOT_H + 14,
+        fontSize: '7.5', fill: '#64748b', fontWeight: 700, textAnchor: 'middle',
+      }, m.label),
+    ];
+  });
+
+  return React.createElement('div', { style: { marginTop: '14px' } },
+    // ── Legend ──
+    React.createElement('div', { className: 'flex items-center gap-3 mb-2' },
+      React.createElement('div', { className: 'flex items-center gap-1' },
+        React.createElement('span', { style: { width: '8px', height: '8px', borderRadius: '2px', background: 'rgba(148,163,184,0.35)', display: 'inline-block' } }),
+        React.createElement('span', { className: 'text-[9px] font-bold text-slate-500' }, 'مستحق')
+      ),
+      React.createElement('div', { className: 'flex items-center gap-1' },
+        React.createElement('span', { style: { width: '8px', height: '8px', borderRadius: '2px', background: '#C9A84C', display: 'inline-block' } }),
+        React.createElement('span', { className: 'text-[9px] font-bold', style: { color: '#C9A84C' } }, 'محصّل')
+      )
+    ),
+    hasAnyData
+      ? React.createElement('svg', { viewBox: `0 0 ${TREND_VB_W} ${TREND_VB_H}`, style: { width: '100%', height: '108px' } }, ...bars)
+      : React.createElement('p', { className: 'text-[10px] font-bold text-slate-600 text-center py-6' }, 'لا توجد بيانات كافية آخر 6 شهور')
+  );
+}
+
 function StatsSection({
-  casesTotal, clientsTotal, userStats, grandTotal, grandPaid, grandRemaining, collectedRate, loadingFeesStats, country,
+  casesTotal, clientsTotal, userStats, grandTotal, grandPaid, grandRemaining, collectedRate, loadingFeesStats, country, monthlyTrend,
 }: StatsSectionProps) {
   const currency = COUNTRY_CONFIGS[country || 'EG']?.currency || 'جنيه مصري';
 
@@ -148,7 +201,10 @@ function StatsSection({
           React.createElement('p', { className: 'text-[9px] font-bold text-slate-500' }, 'متبقي'),
           React.createElement('p', { className: 'font-black mt-0.5', style: { color: '#fb7185', fontSize: '14px', direction: 'ltr' } }, fmt(grandRemaining))
         )
-      )
+      ),
+
+      // اتجاه التحصيل آخر 6 شهور
+      React.createElement(TrendChart, { data: monthlyTrend })
     ),
 
     // ── إحصائيات المستخدمين (منقولة من الشاشة الرئيسية) ──
