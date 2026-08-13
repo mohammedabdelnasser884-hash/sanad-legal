@@ -1,7 +1,7 @@
 import React from 'react';
 import { formatArNumber, formatArTime } from '../../../shared/ui/arabicLocale';
 import { COUNTRY_CONFIGS } from '../../../constants';
-import type { MonthlyTrendPoint } from './hooks/useAdminStats';
+import type { MonthlyTrendPoint, CaseStatusBreakdown } from './hooks/useAdminStats';
 
 interface UserStats {
   total: number;
@@ -23,6 +23,7 @@ interface StatsSectionProps {
   monthlyTrend: MonthlyTrendPoint[];
   sessionsThisWeek: number;
   overdueReminders: number;
+  caseStatusBreakdown: CaseStatusBreakdown;
   lastUpdatedAt: number | null;
   isStale: boolean;
 }
@@ -138,9 +139,43 @@ function TrendChart({ data }: { data: MonthlyTrendPoint[] }) {
   );
 }
 
+// شريط تقسيم القضايا حسب الحالة (نشطة/مؤجلة/منتهية/غير مصنّفة) — شريط أفقي
+// واحد متعدد الألوان بدل دونات، أوضح وأسهل قراءة على شاشة موبايل ضيقة.
+function CaseStatusBar({ data, casesTotal }: { data: CaseStatusBreakdown; casesTotal: number }) {
+  const segments = [
+    { key: 'active',   label: 'نشطة',   value: data.active,   color: '#60a5fa' },
+    { key: 'deferred', label: 'مؤجلة',  value: data.deferred, color: '#fbbf24' },
+    { key: 'closed',   label: 'منتهية', value: data.closed,   color: '#94a3b8' },
+    ...(data.other > 0 ? [{ key: 'other', label: 'غير مصنّفة', value: data.other, color: '#475569' }] : []),
+  ].filter((s) => s.value > 0);
+
+  const total = Math.max(1, casesTotal);
+
+  if (segments.length === 0) {
+    return React.createElement('p', { className: 'text-[10px] font-bold text-slate-600 text-center py-3' }, 'لا توجد قضايا بعد');
+  }
+
+  return React.createElement('div', { style: { marginTop: '10px' } },
+    React.createElement('div', {
+      style: { display: 'flex', height: '10px', borderRadius: '999px', overflow: 'hidden', background: 'rgba(255,255,255,0.06)' },
+    },
+      segments.map((s) => React.createElement('div', {
+        key: s.key,
+        style: { width: `${(s.value / total) * 100}%`, background: s.color, transition: 'width 0.4s ease' },
+      }))
+    ),
+    React.createElement('div', { className: 'flex flex-wrap items-center gap-x-3 gap-y-1 mt-2' },
+      segments.map((s) => React.createElement('div', { key: s.key, className: 'flex items-center gap-1' },
+        React.createElement('span', { style: { width: '7px', height: '7px', borderRadius: '2px', background: s.color, display: 'inline-block' } }),
+        React.createElement('span', { className: 'text-[9px] font-bold text-slate-500' }, `${s.label} ${fmt(s.value)}`)
+      ))
+    )
+  );
+}
+
 function StatsSection({
   casesTotal, clientsTotal, userStats, grandTotal, grandPaid, grandRemaining, collectedRate, loadingFeesStats, country, monthlyTrend,
-  sessionsThisWeek, overdueReminders, lastUpdatedAt, isStale,
+  sessionsThisWeek, overdueReminders, caseStatusBreakdown, lastUpdatedAt, isStale,
 }: StatsSectionProps) {
   const currency = COUNTRY_CONFIGS[country || 'EG']?.currency || 'جنيه مصري';
   const rc = rateColors(collectedRate);
@@ -157,6 +192,17 @@ function StatsSection({
         label: 'عدد الموكلين', value: clientsTotal,
         icon: React.createElement(ClientsGlyph), accent: '#a78bfa', glow: 'rgba(167,139,250,0.6)',
       })
+    ),
+
+    // ── تقسيم القضايا حسب الحالة ──
+    React.createElement('div', {
+      style: {
+        background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
+        borderRadius: '16px', padding: '14px',
+      },
+    },
+      React.createElement('p', { className: 'text-[9.5px] font-black text-slate-500 tracking-wide' }, 'تقسيم القضايا حسب الحالة'),
+      React.createElement(CaseStatusBar, { data: caseStatusBreakdown, casesTotal })
     ),
 
     // ── بطاقة الأتعاب — عريضة، برسم شريط تحصيل ──
