@@ -20,7 +20,16 @@ import type { ProfileRow } from '../../../../types';
 const ADMIN_STATS_SUMMARY_CACHE_KEY = 'sanad_cached_admin_stats_summary_v1';
 const ADMIN_STATS_TREND_CACHE_KEY   = 'sanad_cached_admin_stats_trend_v1';
 const ADMIN_STATS_OPS_CACHE_KEY     = 'sanad_cached_admin_stats_ops_v1';
+const ADMIN_STATS_CASE_STATUS_CACHE_KEY = 'sanad_cached_admin_stats_case_status_v1';
 const TREND_MONTHS = 6;
+const CASE_STATUSES = ['نشطة', 'مؤجلة', 'منتهية'] as const;
+
+export interface CaseStatusBreakdown {
+    active: number;   // نشطة
+    deferred: number; // مؤجلة
+    closed: number;   // منتهية
+    other: number;    // status=null أو قيمة خارج الـ3 المعروفين — عشان الأرقام متتوهش
+}
 
 export interface MonthlyTrendPoint {
     key: string;   // 'YYYY-MM' — للمقارنة/الفرز فقط
@@ -62,6 +71,7 @@ export function useAdminStats(profile: ProfileRow | null) {
     const [monthlyTrend, setMonthlyTrend]     = useState<MonthlyTrendPoint[]>(() => buildEmptyMonths(TREND_MONTHS));
     const [sessionsThisWeek, setSessionsThisWeek]   = useState(0);
     const [overdueReminders, setOverdueReminders]   = useState(0);
+    const [caseStatusBreakdown, setCaseStatusBreakdown] = useState<CaseStatusBreakdown>({ active: 0, deferred: 0, closed: 0, other: 0 });
     // آخر وقت اتحدّثت فيه البيانات فعليًا (سواء من السيرفر أو من الكاش
     // وقت الأوف لاين) — بيتعرض للمستخدم عشان يعرف الأرقام دي جديدة قد إيه.
     const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
@@ -86,6 +96,8 @@ export function useAdminStats(profile: ProfileRow | null) {
             if (cachedTrend) setMonthlyTrend(cachedTrend.data);
             const cachedOps = loadCache<{ sessionsThisWeek: number; overdueReminders: number }>(ADMIN_STATS_OPS_CACHE_KEY, profile.tenant_id);
             if (cachedOps) { setSessionsThisWeek(cachedOps.data.sessionsThisWeek); setOverdueReminders(cachedOps.data.overdueReminders); }
+            const cachedStatus = loadCache<CaseStatusBreakdown>(ADMIN_STATS_CASE_STATUS_CACHE_KEY, profile.tenant_id);
+            if (cachedStatus) setCaseStatusBreakdown(cachedStatus.data);
             setLoadingFeesStats(false);
             return;
         }
@@ -113,16 +125,24 @@ export function useAdminStats(profile: ProfileRow | null) {
             const todayISO = new Date().toISOString().slice(0, 10);
             const weekAheadISO = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
-            const [feesRes, paymentsRes, sessionsRes, remindersRes] = await Promise.all([
+            const [feesRes, paymentsRes, sessionsRes, remindersRes, casesTotalRes, activeRes, deferredRes, closedRes] = await Promise.all([
                 db.from('case_fees').select('total_fees,created_at').is('deleted_at', null).gte('created_at', sinceISO).abortSignal(guard.controller.signal),
                 db.from('fee_payments').select('amount,payment_date').gte('payment_date', sinceISO).abortSignal(guard.controller.signal),
                 db.from('case_sessions').select('id', { count: 'exact', head: true }).gte('session_date', todayISO).lte('session_date', weekAheadISO).abortSignal(guard.controller.signal),
                 db.from('reminders').select('id', { count: 'exact', head: true }).eq('done', false).lt('due_date', todayISO).abortSignal(guard.controller.signal),
+                db.from('cases').select('id', { count: 'exact', head: true }).is('deleted_at', null).abortSignal(guard.controller.signal),
+                db.from('cases').select('id', { count: 'exact', head: true }).is('deleted_at', null).eq('status', CASE_STATUSES[0]).abortSignal(guard.controller.signal),
+                db.from('cases').select('id', { count: 'exact', head: true }).is('deleted_at', null).eq('status', CASE_STATUSES[1]).abortSignal(guard.controller.signal),
+                db.from('cases').select('id', { count: 'exact', head: true }).is('deleted_at', null).eq('status', CASE_STATUSES[2]).abortSignal(guard.controller.signal),
             ]);
             if (feesRes.error) throw feesRes.error;
             if (paymentsRes.error) throw paymentsRes.error;
             if (sessionsRes.error) throw sessionsRes.error;
             if (remindersRes.error) throw remindersRes.error;
+            if (casesTotalRes.error) throw casesTotalRes.error;
+            if (activeRes.error) throw activeRes.error;
+            if (deferredRes.error) throw deferredRes.error;
+            if (closedRes.error) throw closedRes.error;
 
             const byKey = new Map(months.map((m) => [m.key, m]));
             for (const f of (feesRes.data || []) as { total_fees: number | null; created_at: string | null }[]) {
@@ -144,6 +164,19 @@ export function useAdminStats(profile: ProfileRow | null) {
             setOverdueReminders(remindersCount);
             saveCache(ADMIN_STATS_OPS_CACHE_KEY, profile.tenant_id, { sessionsThisWeek: sessionsCount, overdueReminders: remindersCount });
 
+            // ── تقسيم القضايا حسب الحالة ──
+            // "other" بيغطي قضايا status=null (سجلات قديمة قبل ما الحقل ده
+            // يتفعّل) أو أي قيمة خارج الـ3 المعروفين — بيتحسب بالفرق عشان
+            // مجموع الأعمدة الأربعة يفضل مطابق لـcasesTotal دايمًا.
+            const total    = casesTotalRes.count ?? 0;
+            const active   = activeRes.count   ?? 0;
+            const deferred = deferredRes.count ?? 0;
+            const closed   = closedRes.count   ?? 0;
+            const other    = Math.max(0, total - active - deferred - closed);
+            const breakdown: CaseStatusBreakdown = { active, deferred, closed, other };
+            setCaseStatusBreakdown(breakdown);
+            saveCache(ADMIN_STATS_CASE_STATUS_CACHE_KEY, profile.tenant_id, breakdown);
+
             setLastUpdatedAt(Date.now());
             setIsStale(false);
         } catch (err) {
@@ -155,6 +188,8 @@ export function useAdminStats(profile: ProfileRow | null) {
             if (cachedTrend) setMonthlyTrend(cachedTrend.data);
             const cachedOps = loadCache<{ sessionsThisWeek: number; overdueReminders: number }>(ADMIN_STATS_OPS_CACHE_KEY, profile.tenant_id);
             if (cachedOps) { setSessionsThisWeek(cachedOps.data.sessionsThisWeek); setOverdueReminders(cachedOps.data.overdueReminders); }
+            const cachedStatus = loadCache<CaseStatusBreakdown>(ADMIN_STATS_CASE_STATUS_CACHE_KEY, profile.tenant_id);
+            if (cachedStatus) setCaseStatusBreakdown(cachedStatus.data);
         } finally {
             guard.cleanup();
             setLoadingFeesStats(false);
@@ -163,6 +198,6 @@ export function useAdminStats(profile: ProfileRow | null) {
 
     return {
         grandTotal, grandPaid, grandRemaining, collectedRate, loadingFeesStats, monthlyTrend,
-        sessionsThisWeek, overdueReminders, lastUpdatedAt, isStale, fetchStatsSummary,
+        sessionsThisWeek, overdueReminders, caseStatusBreakdown, lastUpdatedAt, isStale, fetchStatsSummary,
     };
 }
