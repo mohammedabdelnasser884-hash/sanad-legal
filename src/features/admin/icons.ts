@@ -45,6 +45,11 @@ const IconOffice = () => React.createElement('svg',{className:"w-5 h-5",fill:"no
 const IconArchive = ({className="w-5 h-5"}:{className?:string}) => React.createElement('svg',{className,fill:"none",viewBox:"0 0 24 24",strokeWidth:"1.5",stroke:"currentColor"},
   React.createElement('path',{strokeLinecap:"round",strokeLinejoin:"round",d:"M20.25 7.5v10.125c0 .621-.504 1.125-1.125 1.125h-14.25a1.125 1.125 0 0 1-1.125-1.125V7.5M3.375 3h17.25c.621 0 1.125.504 1.125 1.125v2.25c0 .621-.504 1.125-1.125 1.125H3.375A1.125 1.125 0 0 1 2.25 6.375v-2.25C2.25 3.504 2.754 3 3.375 3ZM9.75 12h4.5"}));
 
+// أيقونة قسم "الإحصائيات" — رسم بياني أعمدة مع خط اتجاه صاعد
+const IconStats = ({className="w-5 h-5"}:{className?:string}) => React.createElement('svg',{className,fill:"none",viewBox:"0 0 24 24",strokeWidth:"1.5",stroke:"currentColor"},
+  React.createElement('path',{strokeLinecap:"round",strokeLinejoin:"round",d:"M3 3v16.5A1.5 1.5 0 0 0 4.5 21H21"}),
+  React.createElement('path',{strokeLinecap:"round",strokeLinejoin:"round",d:"M7.5 16.5v-3.75m4.5 3.75V8.25m4.5 8.25V11.25m4.5 5.25V6"}));
+
 // ─────────────────────────────────────────
 //  الألوان لكل دور
 // ─────────────────────────────────────────
@@ -71,4 +76,4 @@ const PERMISSION_LABELS = {
 //  مودال تعديل المستخدم
 // ─────────────────────────────────────────
 
-export { IconAdmin, IconToggle, IconKey, IconPortal, IconActivity, IconSecurity, IconLockSm, IconDevices, IconWarning, IconBackup, IconSessions, IconOffice, IconArchive, ROLE_CONFIG, PERMISSION_LABELS };
+export { IconAdmin, IconToggle, IconKey, IconPortal, IconActivity, IconSecurity, IconLockSm, IconDevices, IconWarning, IconBackup, IconSessions, IconOffice, IconArchive, IconStats, ROLE_CONFIG, PERMISSION_LABELS };
