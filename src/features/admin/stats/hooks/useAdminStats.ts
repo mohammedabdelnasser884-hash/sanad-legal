@@ -19,6 +19,7 @@ import type { ProfileRow } from '../../../../types';
 // ─────────────────────────────────────────────────────────
 const ADMIN_STATS_SUMMARY_CACHE_KEY = 'sanad_cached_admin_stats_summary_v1';
 const ADMIN_STATS_TREND_CACHE_KEY   = 'sanad_cached_admin_stats_trend_v1';
+const ADMIN_STATS_OPS_CACHE_KEY     = 'sanad_cached_admin_stats_ops_v1';
 const TREND_MONTHS = 6;
 
 export interface MonthlyTrendPoint {
@@ -42,15 +43,15 @@ function buildEmptyMonths(count: number): MonthlyTrendPoint[] {
 }
 
 function saveCache<T>(key: string, tenantId: string | null | undefined, data: T) {
-    try { localStorage.setItem(key, JSON.stringify({ tenantId: tenantId ?? null, data })); } catch { /* localStorage غير متاح — تجاهل */ }
+    try { localStorage.setItem(key, JSON.stringify({ tenantId: tenantId ?? null, data, savedAt: Date.now() })); } catch { /* localStorage غير متاح — تجاهل */ }
 }
-function loadCache<T>(key: string, tenantId: string | null | undefined): T | null {
+function loadCache<T>(key: string, tenantId: string | null | undefined): { data: T; savedAt: number } | null {
     try {
         const raw = localStorage.getItem(key);
         if (!raw) return null;
-        const parsed = JSON.parse(raw) as { tenantId: string | null; data: T };
+        const parsed = JSON.parse(raw) as { tenantId: string | null; data: T; savedAt?: number };
         if (parsed.tenantId !== (tenantId ?? null)) return null;
-        return parsed.data;
+        return { data: parsed.data, savedAt: parsed.savedAt || 0 };
     } catch { return null; }
 }
 
@@ -59,6 +60,12 @@ export function useAdminStats(profile: ProfileRow | null) {
     const [grandPaid, setGrandPaid]           = useState(0);
     const [loadingFeesStats, setLoadingFeesStats] = useState(false);
     const [monthlyTrend, setMonthlyTrend]     = useState<MonthlyTrendPoint[]>(() => buildEmptyMonths(TREND_MONTHS));
+    const [sessionsThisWeek, setSessionsThisWeek]   = useState(0);
+    const [overdueReminders, setOverdueReminders]   = useState(0);
+    // آخر وقت اتحدّثت فيه البيانات فعليًا (سواء من السيرفر أو من الكاش
+    // وقت الأوف لاين) — بيتعرض للمستخدم عشان يعرف الأرقام دي جديدة قد إيه.
+    const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
+    const [isStale, setIsStale] = useState(false);
 
     const grandRemaining = grandTotal - grandPaid;
     const collectedRate  = grandTotal > 0 ? Math.round((grandPaid / grandTotal) * 100) : 0;
@@ -70,7 +77,15 @@ export function useAdminStats(profile: ProfileRow | null) {
         if (guard.offline) {
             recordError('db_admin_stats', 'offline');
             const cached = loadCache<{ total: number; paid: number }>(ADMIN_STATS_SUMMARY_CACHE_KEY, profile.tenant_id);
-            if (cached) { setGrandTotal(cached.total); setGrandPaid(cached.paid); toast('أنت أوف لاين — بتشوف آخر نسخة محفوظة من إحصائيات الأتعاب'); }
+            if (cached) {
+                setGrandTotal(cached.data.total); setGrandPaid(cached.data.paid);
+                setLastUpdatedAt(cached.savedAt); setIsStale(true);
+                toast('أنت أوف لاين — بتشوف آخر نسخة محفوظة من إحصائيات الأتعاب');
+            }
+            const cachedTrend = loadCache<MonthlyTrendPoint[]>(ADMIN_STATS_TREND_CACHE_KEY, profile.tenant_id);
+            if (cachedTrend) setMonthlyTrend(cachedTrend.data);
+            const cachedOps = loadCache<{ sessionsThisWeek: number; overdueReminders: number }>(ADMIN_STATS_OPS_CACHE_KEY, profile.tenant_id);
+            if (cachedOps) { setSessionsThisWeek(cachedOps.data.sessionsThisWeek); setOverdueReminders(cachedOps.data.overdueReminders); }
             setLoadingFeesStats(false);
             return;
         }
@@ -94,12 +109,20 @@ export function useAdminStats(profile: ProfileRow | null) {
             const sinceISO = sinceDate.toISOString().slice(0, 10);
             const monthKeyOf = (iso: string) => iso.slice(0, 7);
 
-            const [feesRes, paymentsRes] = await Promise.all([
+            // ── إحصائيات تشغيلية: جلسات الأسبوع الجاي + تذكيرات متأخرة ──
+            const todayISO = new Date().toISOString().slice(0, 10);
+            const weekAheadISO = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+            const [feesRes, paymentsRes, sessionsRes, remindersRes] = await Promise.all([
                 db.from('case_fees').select('total_fees,created_at').is('deleted_at', null).gte('created_at', sinceISO).abortSignal(guard.controller.signal),
                 db.from('fee_payments').select('amount,payment_date').gte('payment_date', sinceISO).abortSignal(guard.controller.signal),
+                db.from('case_sessions').select('id', { count: 'exact', head: true }).gte('session_date', todayISO).lte('session_date', weekAheadISO).abortSignal(guard.controller.signal),
+                db.from('reminders').select('id', { count: 'exact', head: true }).eq('done', false).lt('due_date', todayISO).abortSignal(guard.controller.signal),
             ]);
             if (feesRes.error) throw feesRes.error;
             if (paymentsRes.error) throw paymentsRes.error;
+            if (sessionsRes.error) throw sessionsRes.error;
+            if (remindersRes.error) throw remindersRes.error;
 
             const byKey = new Map(months.map((m) => [m.key, m]));
             for (const f of (feesRes.data || []) as { total_fees: number | null; created_at: string | null }[]) {
@@ -114,18 +137,32 @@ export function useAdminStats(profile: ProfileRow | null) {
             }
             setMonthlyTrend(months);
             saveCache(ADMIN_STATS_TREND_CACHE_KEY, profile.tenant_id, months);
+
+            const sessionsCount  = sessionsRes.count  ?? 0;
+            const remindersCount = remindersRes.count ?? 0;
+            setSessionsThisWeek(sessionsCount);
+            setOverdueReminders(remindersCount);
+            saveCache(ADMIN_STATS_OPS_CACHE_KEY, profile.tenant_id, { sessionsThisWeek: sessionsCount, overdueReminders: remindersCount });
+
+            setLastUpdatedAt(Date.now());
+            setIsStale(false);
         } catch (err) {
             const msg = guard.didTimeOut() ? 'timeout' : (err as { message?: string })?.message || 'fetch failed';
             recordError('db_admin_stats', msg);
             const cached = loadCache<{ total: number; paid: number }>(ADMIN_STATS_SUMMARY_CACHE_KEY, profile.tenant_id);
-            if (cached) { setGrandTotal(cached.total); setGrandPaid(cached.paid); }
+            if (cached) { setGrandTotal(cached.data.total); setGrandPaid(cached.data.paid); setLastUpdatedAt(cached.savedAt); setIsStale(true); }
             const cachedTrend = loadCache<MonthlyTrendPoint[]>(ADMIN_STATS_TREND_CACHE_KEY, profile.tenant_id);
-            if (cachedTrend) setMonthlyTrend(cachedTrend);
+            if (cachedTrend) setMonthlyTrend(cachedTrend.data);
+            const cachedOps = loadCache<{ sessionsThisWeek: number; overdueReminders: number }>(ADMIN_STATS_OPS_CACHE_KEY, profile.tenant_id);
+            if (cachedOps) { setSessionsThisWeek(cachedOps.data.sessionsThisWeek); setOverdueReminders(cachedOps.data.overdueReminders); }
         } finally {
             guard.cleanup();
             setLoadingFeesStats(false);
         }
     }, [profile]);
 
-    return { grandTotal, grandPaid, grandRemaining, collectedRate, loadingFeesStats, monthlyTrend, fetchStatsSummary };
+    return {
+        grandTotal, grandPaid, grandRemaining, collectedRate, loadingFeesStats, monthlyTrend,
+        sessionsThisWeek, overdueReminders, lastUpdatedAt, isStale, fetchStatsSummary,
+    };
 }
