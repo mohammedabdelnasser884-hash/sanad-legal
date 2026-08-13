@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { I } from '../../constants';
 
 // ─── Sub-components ──────────────────────
-import { IconAdmin, IconToggle, IconKey, IconPortal, IconActivity, IconSecurity, IconWarning, IconBackup, IconSessions, IconOffice, IconArchive, ROLE_CONFIG, PERMISSION_LABELS } from './icons';
+import { IconAdmin, IconToggle, IconKey, IconPortal, IconActivity, IconSecurity, IconWarning, IconBackup, IconSessions, IconOffice, IconArchive, IconStats, ROLE_CONFIG, PERMISSION_LABELS } from './icons';
 import PortalSection from './portal/PortalSection';
 import ActivitySection from './activity/ActivitySection';
 import SessionsSection from './sessions/SessionsSection';
@@ -13,6 +13,8 @@ import LegalLibrarySection from './legal-library/LegalLibrarySection';
 import UsersSection from './users/UsersSection';
 import ArchiveSection from './archive/ArchiveSection';
 import type { ArchiveTabId } from './archive/ArchiveSection';
+import StatsSection from './stats/StatsSection';
+import { useAdminStats } from './stats/hooks/useAdminStats';
 import AdminPanelModals from './AdminPanelModals';
 import AdminPanelSectionConfirms from './AdminPanelSectionConfirms';
 
@@ -31,7 +33,7 @@ import { useAdminArchive, ARCHIVE_PAGE_SIZE } from './archive/hooks/useAdminArch
 import type { ProfileRow, ClientRow } from '../../types';
 import type { NavigationState } from '../../useNavigation';
 
-type SectionId = 'users' | 'portal' | 'activity' | 'sessions' | 'security' | 'backup' | 'office' | 'legal_library' | 'archive' | null;
+type SectionId = 'users' | 'portal' | 'activity' | 'sessions' | 'security' | 'backup' | 'office' | 'legal_library' | 'archive' | 'stats' | null;
 
 // شكل عنصر بطاقات التنقل الرئيسية (نفس الحقول المستخدمة فعليًا في الـ .map تحت)
 interface NavCardConfig {
@@ -48,17 +50,6 @@ interface NavCardConfig {
   hoverBorder: string;
 }
 
-// شكل عنصر بطاقات الإحصائيات السريعة
-interface StatCardConfig {
-  label: string;
-  value: number;
-  icon: string;
-  bg: string;
-  border: string;
-  numColor: string;
-  glowColor: string;
-}
-
 interface AdminPanelProps {
     profile: ProfileRow | null;
     lawyers: ProfileRow[];
@@ -67,13 +58,15 @@ interface AdminPanelProps {
     country: string;
     onCountryChange: (country: string) => void;
     nav: NavigationState;
+    casesTotal: number;
+    clientsTotal: number;
 }
 
 // ⚠️ حساب السوبر أدمن الوحيد المسموح له برؤية/فتح "المكتبة القانونية" و"بوابة إدارة المكاتب"
 // أي تعديل هنا لازم يكون مقصودًا — ده الحاجز الوحيد اللي بيمنع باقي المكاتب من رؤية القسمين دول
 const SUPER_ADMIN_EMAIL = 'm.gemy4231@gmail.com';
 
-export default function AdminPanel({ profile, lawyers, clients, fetchLawyers, country, onCountryChange, nav }: AdminPanelProps) {
+export default function AdminPanel({ profile, lawyers, clients, fetchLawyers, country, onCountryChange, nav, casesTotal, clientsTotal }: AdminPanelProps) {
   const [section, setSection] = useState<SectionId>(null);
   const isSuperAdminUser = (profile?.email || '').trim().toLowerCase() === SUPER_ADMIN_EMAIL;
 
@@ -98,6 +91,8 @@ export default function AdminPanel({ profile, lawyers, clients, fetchLawyers, co
   const backup = useAdminBackup(profile);
   const office = useAdminOffice(profile?.tenant_id ?? null, profile);
   const library = useAdminLegalLibrary(profile);
+  const adminStats = useAdminStats(profile);
+  const { fetchStatsSummary } = adminStats;
   const portal = useAdminPortal(profile);
   const archive = useAdminArchive(clients, profile);
 
@@ -211,6 +206,14 @@ export default function AdminPanel({ profile, lawyers, clients, fetchLawyers, co
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [section, activityFilters, activityPage]);
 
+  // ── جلب ملخص الأتعاب عند فتح قسم "الإحصائيات" فقط (مش عند فتح لوحة
+  // الإدارة كلها) — نفس نمط سجل النشاط فوق، عشان ميحصلش استعلام إضافي
+  // كل مرة المستخدم يفتح لوحة الإدارة من غير ما القسم ده يتفتح فعليًا ──
+  useEffect(() => {
+    if (section === 'stats') fetchStatsSummary();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [section]);
+
   // ── إحصائيات المستخدمين ──
   const stats = {
     total:         lawyers.length,
@@ -252,8 +255,19 @@ export default function AdminPanel({ profile, lawyers, clients, fetchLawyers, co
     // ── Nav Cards (الترتيب الجديد) ──
     React.createElement('div',{className:"grid grid-cols-2 gap-2.5"},
 
-      // صف 1: المستخدمون + بوابة الموكل
+      // صف 1: الإحصائيات + المستخدمون
       ...([
+        {
+          id:'stats',
+          icon: React.createElement(IconStats),
+          label:'الإحصائيات',
+          desc:'القضايا والموكلين والأتعاب',
+          badge: null,
+          accentBefore:'#f472b6',
+          iconBg:'rgba(244,114,182,0.12)', iconColor:'#f472b6',
+          activeBg:'rgba(244,114,182,0.04)', activeBorder:'rgba(244,114,182,0.22)',
+          hoverBorder:'rgba(244,114,182,0.25)',
+        },
         {
           id:'users',
           icon: React.createElement(I.Users),
@@ -509,37 +523,7 @@ export default function AdminPanel({ profile, lawyers, clients, fetchLawyers, co
         )
       )
     ),
-
-    // ── إحصائيات سريعة ──
-    React.createElement('div',{className:'space-y-2'},
-      React.createElement('p',{className:'text-[9px] font-black text-slate-600 tracking-widest px-1'},'إحصائيات سريعة'),
-      React.createElement('div',{className:'grid grid-cols-4 gap-2'},
-        ([
-          { label:'الإجمالي', value:stats.total,         icon:'👥', bg:'rgba(255,255,255,0.03)', border:'rgba(255,255,255,0.06)', numColor:'#e2e8f0', glowColor:'rgba(255,255,255,0.2)' },
-          { label:'نشط',      value:stats.active,        icon:'⚡', bg:'rgba(74,222,128,0.06)',  border:'rgba(74,222,128,0.15)',  numColor:'#4ade80', glowColor:'rgba(74,222,128,0.6)' },
-          { label:'مديرون',   value:stats.admins,        icon:'🛡', bg:'rgba(96,165,250,0.06)',  border:'rgba(96,165,250,0.15)',  numColor:'#60a5fa', glowColor:'rgba(96,165,250,0.6)' },
-          { label:'بوابات',   value:stats.portalEnabled, icon:'🔑', bg:'rgba(245,158,11,0.06)',  border:'rgba(245,158,11,0.15)',  numColor:'#fbbf24', glowColor:'rgba(245,158,11,0.6)' },
-        ] as StatCardConfig[]).map((s) => React.createElement('div',{
-          key:s.label,
-          style:{
-            background:s.bg, border:`1px solid ${s.border}`,
-            borderRadius:'13px', padding:'10px 6px 9px',
-            textAlign:'center', position:'relative', overflow:'hidden',
-          }
-        },
-          // خط علوي متوهج
-          React.createElement('div',{style:{
-            position:'absolute', top:0, left:'20%', right:'20%',
-            height:'1.5px', borderRadius:'0 0 3px 3px',
-            background:s.numColor, boxShadow:`0 0 6px ${s.glowColor}`,
-          }}),
-          React.createElement('div',{style:{fontSize:'13px', marginBottom:'4px', lineHeight:1}}, s.icon),
-          React.createElement('p',{style:{fontSize:'19px', fontWeight:800, color:s.numColor, lineHeight:1, marginBottom:'3px'}}, s.value),
-          React.createElement('p',{style:{fontSize:'8.5px', color:'#475569', fontWeight:700}}, s.label)
-        ))
-      )
-    ),
-  ), // ── نهاية div المحتوى الرئيسي ──
+  ), // ── نهاية div المحتوى الرئيسي — إحصائيات المستخدمين اتنقلت لقسم "الإحصائيات" (13 أغسطس 2026) ──
 
     // ══════════════════════════════════════
     //  FULL-SCREEN OVERLAY
@@ -561,6 +545,7 @@ export default function AdminPanel({ profile, lawyers, clients, fetchLawyers, co
         React.createElement('div',{style:{
           position:'absolute', top:0, right:0, left:0, height:'3px',
           background:({
+            stats:   'linear-gradient(90deg,#db2777,#f472b6)',
             users:   'linear-gradient(90deg,#3b82f6,#60a5fa)',
             portal:  'linear-gradient(90deg,#7c3aed,#a78bfa)',
             activity:'linear-gradient(90deg,#2563eb,#60a5fa)',
@@ -572,6 +557,7 @@ export default function AdminPanel({ profile, lawyers, clients, fetchLawyers, co
             archive: 'linear-gradient(90deg,#6366f1,#818cf8)',
           } as Record<string, string>)[section as string]||'transparent',
           boxShadow:({
+            stats:   '0 0 12px rgba(244,114,182,0.5)',
             users:   '0 0 12px rgba(96,165,250,0.5)',
             portal:  '0 0 12px rgba(167,139,250,0.5)',
             activity:'0 0 12px rgba(96,165,250,0.5)',
@@ -599,7 +585,7 @@ export default function AdminPanel({ profile, lawyers, clients, fetchLawyers, co
             ),
             React.createElement('div',null,
               React.createElement('h2',{className:"text-sm font-black text-white"},
-                ({users:'المستخدمون',sessions:'الجلسات',portal:'بوابة الموكل',activity:'سجل النشاط',security:'الأمان',backup:'نسخ احتياطي',office:'إعدادات المكتب',legal_library:'المكتبة القانونية',archive:'الأرشيف'} as Record<string, string>)[section as string]||''
+                ({stats:'الإحصائيات',users:'المستخدمون',sessions:'الجلسات',portal:'بوابة الموكل',activity:'سجل النشاط',security:'الأمان',backup:'نسخ احتياطي',office:'إعدادات المكتب',legal_library:'المكتبة القانونية',archive:'الأرشيف'} as Record<string, string>)[section as string]||''
               ),
               React.createElement('p',{className:"text-[10px] text-slate-500"},"لوحة الإدارة")
             )
@@ -622,6 +608,16 @@ export default function AdminPanel({ profile, lawyers, clients, fetchLawyers, co
         )
       ),
       React.createElement('div',{className:"flex-1 overflow-y-auto no-scrollbar px-4 py-4 pb-32 space-y-3"},
+
+    // ══════════════════════════
+    //  SECTION: الإحصائيات
+    // ══════════════════════════
+    section === 'stats' && React.createElement(StatsSection, {
+      casesTotal, clientsTotal, userStats: stats, country,
+      grandTotal: adminStats.grandTotal, grandPaid: adminStats.grandPaid,
+      grandRemaining: adminStats.grandRemaining, collectedRate: adminStats.collectedRate,
+      loadingFeesStats: adminStats.loadingFeesStats,
+    }),
 
     section === 'users' && React.createElement(UsersSection, { lawyers, profile, toggleUserActive, setChangePassUser, setEditUser, setConfirmDelete }),
 
