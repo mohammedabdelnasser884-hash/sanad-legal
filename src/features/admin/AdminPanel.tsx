@@ -616,7 +616,7 @@ export default function AdminPanel({ profile, lawyers, clients, fetchLawyers, co
       casesTotal, clientsTotal, userStats: stats, country,
       grandTotal: adminStats.grandTotal, grandPaid: adminStats.grandPaid,
       grandRemaining: adminStats.grandRemaining, collectedRate: adminStats.collectedRate,
-      loadingFeesStats: adminStats.loadingFeesStats,
+      loadingFeesStats: adminStats.loadingFeesStats, monthlyTrend: adminStats.monthlyTrend,
     }),
 
     section === 'users' && React.createElement(UsersSection, { lawyers, profile, toggleUserActive, setChangePassUser, setEditUser, setConfirmDelete }),
