@@ -618,6 +618,7 @@ export default function AdminPanel({ profile, lawyers, clients, fetchLawyers, co
       grandRemaining: adminStats.grandRemaining, collectedRate: adminStats.collectedRate,
       loadingFeesStats: adminStats.loadingFeesStats, monthlyTrend: adminStats.monthlyTrend,
       sessionsThisWeek: adminStats.sessionsThisWeek, overdueReminders: adminStats.overdueReminders,
+      caseStatusBreakdown: adminStats.caseStatusBreakdown,
       lastUpdatedAt: adminStats.lastUpdatedAt, isStale: adminStats.isStale,
     }),
 
