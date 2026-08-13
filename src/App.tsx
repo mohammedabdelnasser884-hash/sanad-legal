@@ -481,7 +481,7 @@ function App() {
                 // بدل clients الخام — useAdminArchive بيدوّر بـ clients.find(id) عشان
                 // client_name في سجل موكل مؤرشف، فممكن يرجع فاضي لموكل مش من ضمن
                 // أول صفحة محمّلة.
-                ? React.createElement(AdminPanel, { profile, lawyers, clients: clientsWithExtras, fetchLawyers, country, onCountryChange: (c: string) => { setCountry(c); }, nav })
+                ? React.createElement(AdminPanel, { profile, lawyers, clients: clientsWithExtras, fetchLawyers, country, onCountryChange: (c: string) => { setCountry(c); }, nav, casesTotal, clientsTotal })
                 : React.createElement('div', { className: 'flex flex-col items-center justify-center pt-24 gap-3' },
                     React.createElement('div', { className: 'w-14 h-14 rounded-2xl bg-red-500/10 flex items-center justify-center' },
                         React.createElement(I.Shield, { className: 'w-7 h-7 text-red-400' })
