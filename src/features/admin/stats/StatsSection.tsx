@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatArNumber } from '../../../shared/ui/arabicLocale';
+import { formatArNumber, formatArTime } from '../../../shared/ui/arabicLocale';
 import { COUNTRY_CONFIGS } from '../../../constants';
 import type { MonthlyTrendPoint } from './hooks/useAdminStats';
 
@@ -21,9 +21,22 @@ interface StatsSectionProps {
   loadingFeesStats: boolean;
   country: string;
   monthlyTrend: MonthlyTrendPoint[];
+  sessionsThisWeek: number;
+  overdueReminders: number;
+  lastUpdatedAt: number | null;
+  isStale: boolean;
 }
 
 const fmt = (n: number) => formatArNumber(n, { maximumFractionDigits: 0 });
+
+// لون شريط نسبة التحصيل بيتغيّر حسب القيمة — أحمر تحذيري للنسب الضعيفة،
+// أصفر للمتوسطة، أخضر بس لو فعلاً كويسة. قبل كده كان أخضر ثابت دايمًا
+// حتى لو النسبة 15%، وده بيفقد الشريط قيمته كمؤشر بصري.
+function rateColors(rate: number) {
+  if (rate < 40) return { from: '#f87171', to: '#ef4444', glow: 'rgba(248,113,113,0.6)', text: '#f87171' };
+  if (rate < 70) return { from: '#fbbf24', to: '#f59e0b', glow: 'rgba(251,191,36,0.6)',  text: '#fbbf24' };
+  return { from: '#4ade80', to: '#22c55e', glow: 'rgba(74,222,128,0.6)', text: '#4ade80' };
+}
 
 // بطاقة "هيرو" كبيرة (عدد القضايا / عدد الموكلين) — رقم ضخم في المنتصف
 // وأيقونة خلفية شبحية شفافة، بديل عن مربع الإحصائيات الصغير التقليدي.
@@ -127,8 +140,10 @@ function TrendChart({ data }: { data: MonthlyTrendPoint[] }) {
 
 function StatsSection({
   casesTotal, clientsTotal, userStats, grandTotal, grandPaid, grandRemaining, collectedRate, loadingFeesStats, country, monthlyTrend,
+  sessionsThisWeek, overdueReminders, lastUpdatedAt, isStale,
 }: StatsSectionProps) {
   const currency = COUNTRY_CONFIGS[country || 'EG']?.currency || 'جنيه مصري';
+  const rc = rateColors(collectedRate);
 
   return React.createElement('div', { className: 'space-y-4' },
 
@@ -162,7 +177,10 @@ function StatsSection({
       }),
       React.createElement('div', { className: 'flex items-center justify-between' },
         React.createElement('p', { className: 'text-[10.5px] font-black tracking-wide', style: { color: '#C9A84C' } }, 'إجمالي الأتعاب'),
-        loadingFeesStats && React.createElement('span', { className: 'text-[9.5px] text-slate-500 font-medium' }, 'بيتحدّث...')
+        loadingFeesStats
+          ? React.createElement('span', { className: 'text-[9.5px] text-slate-500 font-medium' }, 'بيتحدّث...')
+          : lastUpdatedAt && React.createElement('span', { className: 'text-[9px] font-medium', style: { color: isStale ? '#fb7185' : '#64748b' } },
+              isStale ? `⚠️ بيانات محفوظة — ${formatArTime(lastUpdatedAt)}` : `آخر تحديث ${formatArTime(lastUpdatedAt)}`)
       ),
       React.createElement('p', {
         className: 'font-black', style: { color: '#f1f5f9', fontSize: '28px', lineHeight: 1, marginTop: '8px', direction: 'ltr', textAlign: 'right' },
@@ -176,14 +194,14 @@ function StatsSection({
           React.createElement('div', {
             style: {
               height: '100%', width: `${Math.min(100, Math.max(0, collectedRate))}%`,
-              background: 'linear-gradient(90deg,#4ade80,#22c55e)',
-              boxShadow: '0 0 8px rgba(74,222,128,0.6)',
-              borderRadius: '999px', transition: 'width 0.4s ease',
+              background: `linear-gradient(90deg,${rc.from},${rc.to})`,
+              boxShadow: `0 0 8px ${rc.glow}`,
+              borderRadius: '999px', transition: 'width 0.4s ease, background 0.4s ease',
             },
           })
         ),
         React.createElement('div', { className: 'flex items-center justify-between mt-1.5' },
-          React.createElement('span', { className: 'text-[9.5px] font-bold', style: { color: '#4ade80' } }, `نسبة التحصيل ${collectedRate}%`)
+          React.createElement('span', { className: 'text-[9.5px] font-bold', style: { color: rc.text } }, `نسبة التحصيل ${collectedRate}%`)
         )
       ),
 
@@ -205,6 +223,38 @@ function StatsSection({
 
       // اتجاه التحصيل آخر 6 شهور
       React.createElement(TrendChart, { data: monthlyTrend })
+    ),
+
+    // ── إحصائيات تشغيلية: جلسات الأسبوع الجاي + تذكيرات متأخرة ──
+    React.createElement('div', { className: 'space-y-2' },
+      React.createElement('p', { className: 'text-[9px] font-black text-slate-600 tracking-widest px-1' }, 'إحصائيات تشغيلية'),
+      React.createElement('div', { className: 'grid grid-cols-2 gap-2.5' },
+        React.createElement('div', {
+          style: {
+            background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.15)',
+            borderRadius: '13px', padding: '12px 10px', position: 'relative', overflow: 'hidden',
+          },
+        },
+          React.createElement('div', {
+            style: { position: 'absolute', top: 0, right: '12px', left: '12px', height: '1.5px', borderRadius: '0 0 3px 3px', background: '#60a5fa', boxShadow: '0 0 6px rgba(96,165,250,0.6)' },
+          }),
+          React.createElement('p', { className: 'text-[9px] font-bold text-slate-500' }, '📅 جلسات الأسبوع الجاي'),
+          React.createElement('p', { className: 'font-black mt-1', style: { color: '#60a5fa', fontSize: '20px' } }, fmt(sessionsThisWeek))
+        ),
+        React.createElement('div', {
+          style: {
+            background: overdueReminders > 0 ? 'rgba(251,113,133,0.08)' : 'rgba(74,222,128,0.06)',
+            border: `1px solid ${overdueReminders > 0 ? 'rgba(251,113,133,0.2)' : 'rgba(74,222,128,0.15)'}`,
+            borderRadius: '13px', padding: '12px 10px', position: 'relative', overflow: 'hidden',
+          },
+        },
+          React.createElement('div', {
+            style: { position: 'absolute', top: 0, right: '12px', left: '12px', height: '1.5px', borderRadius: '0 0 3px 3px', background: overdueReminders > 0 ? '#fb7185' : '#4ade80', boxShadow: `0 0 6px ${overdueReminders > 0 ? 'rgba(251,113,133,0.6)' : 'rgba(74,222,128,0.6)'}` },
+          }),
+          React.createElement('p', { className: 'text-[9px] font-bold text-slate-500' }, overdueReminders > 0 ? '⏰ تذكيرات متأخرة' : '✅ لا توجد تذكيرات متأخرة'),
+          React.createElement('p', { className: 'font-black mt-1', style: { color: overdueReminders > 0 ? '#fb7185' : '#4ade80', fontSize: '20px' } }, fmt(overdueReminders))
+        )
+      )
     ),
 
     // ── إحصائيات المستخدمين (منقولة من الشاشة الرئيسية) ──
