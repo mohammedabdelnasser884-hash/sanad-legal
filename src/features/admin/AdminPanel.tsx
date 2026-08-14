@@ -91,7 +91,7 @@ export default function AdminPanel({ profile, lawyers, clients, fetchLawyers, co
   const backup = useAdminBackup(profile);
   const office = useAdminOffice(profile?.tenant_id ?? null, profile);
   const library = useAdminLegalLibrary(profile);
-  const adminStats = useAdminStats(profile);
+  const adminStats = useAdminStats(profile, casesTotal);
   const { fetchStatsSummary } = adminStats;
   const portal = useAdminPortal(profile);
   const archive = useAdminArchive(clients, profile);
@@ -613,7 +613,7 @@ export default function AdminPanel({ profile, lawyers, clients, fetchLawyers, co
     //  SECTION: الإحصائيات
     // ══════════════════════════
     section === 'stats' && React.createElement(StatsSection, {
-      casesTotal, clientsTotal, userStats: stats, country,
+      casesTotal, clientsTotal, country,
       grandTotal: adminStats.grandTotal, grandPaid: adminStats.grandPaid,
       grandRemaining: adminStats.grandRemaining, collectedRate: adminStats.collectedRate,
       loadingFeesStats: adminStats.loadingFeesStats, monthlyTrend: adminStats.monthlyTrend,
