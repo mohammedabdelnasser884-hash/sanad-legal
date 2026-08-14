@@ -82,6 +82,7 @@ export function useAdminStats(profile: ProfileRow | null, casesTotal: number = 0
     const [monthlyTrend, setMonthlyTrend]     = useState<MonthlyTrendPoint[]>(() => buildEmptyMonths(TREND_MONTHS));
     const [sessionsThisWeek, setSessionsThisWeek]   = useState(0);
     const [overdueReminders, setOverdueReminders]   = useState(0);
+    const [overdueSessions, setOverdueSessions]     = useState(0);
     const [caseStatusBreakdown, setCaseStatusBreakdown] = useState<CaseStatusBreakdown>({ active: 0, deferred: 0, closed: 0, other: 0 });
     // آخر وقت اتحدّثت فيه البيانات فعليًا (سواء من السيرفر أو من الكاش
     // وقت الأوف لاين) — بيتعرض للمستخدم عشان يعرف الأرقام دي جديدة قد إيه.
@@ -105,8 +106,8 @@ export function useAdminStats(profile: ProfileRow | null, casesTotal: number = 0
             }
             const cachedTrend = loadCache<MonthlyTrendPoint[]>(ADMIN_STATS_TREND_CACHE_KEY, profile.tenant_id);
             if (cachedTrend) setMonthlyTrend(cachedTrend.data);
-            const cachedOps = loadCache<{ sessionsThisWeek: number; overdueReminders: number }>(ADMIN_STATS_OPS_CACHE_KEY, profile.tenant_id);
-            if (cachedOps) { setSessionsThisWeek(cachedOps.data.sessionsThisWeek); setOverdueReminders(cachedOps.data.overdueReminders); }
+            const cachedOps = loadCache<{ sessionsThisWeek: number; overdueReminders: number; overdueSessions: number }>(ADMIN_STATS_OPS_CACHE_KEY, profile.tenant_id);
+            if (cachedOps) { setSessionsThisWeek(cachedOps.data.sessionsThisWeek); setOverdueReminders(cachedOps.data.overdueReminders); setOverdueSessions(cachedOps.data.overdueSessions ?? 0); }
             const cachedStatus = loadCache<CaseStatusBreakdown>(ADMIN_STATS_CASE_STATUS_CACHE_KEY, profile.tenant_id);
             if (cachedStatus) setCaseStatusBreakdown(cachedStatus.data);
             setLoadingFeesStats(false);
@@ -132,11 +133,11 @@ export function useAdminStats(profile: ProfileRow | null, casesTotal: number = 0
             const sinceISO = sinceDate.toISOString().slice(0, 10);
             const monthKeyOf = (iso: string) => iso.slice(0, 7);
 
-            // ── إحصائيات تشغيلية: جلسات الأسبوع الجاي + تذكيرات متأخرة ──
+            // ── إحصائيات تشغيلية: جلسات الأسبوع الجاي + جلسات متأخرة + تذكيرات متأخرة ──
             const todayISO = new Date().toISOString().slice(0, 10);
             const weekAheadISO = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
-            const [feesRes, paymentsRes, sessionsRes, remindersRes, caseStatusRes] = await Promise.all([
+            const [feesRes, paymentsRes, sessionsRes, remindersRes, caseStatusRes, futureSessCasesRes, pastSessCasesRes] = await Promise.all([
                 db.from('case_fees').select('total_fees,created_at').is('deleted_at', null).gte('created_at', sinceISO).abortSignal(guard.controller.signal),
                 db.from('fee_payments').select('amount,payment_date').gte('payment_date', sinceISO).abortSignal(guard.controller.signal),
                 db.from('case_sessions').select('id', { count: 'exact', head: true }).gte('session_date', todayISO).lte('session_date', weekAheadISO).abortSignal(guard.controller.signal),
@@ -147,12 +148,21 @@ export function useAdminStats(profile: ProfileRow | null, casesTotal: number = 0
                 // "other" (كان بيتحسب بالفرق ولو حصل ديسينك كان بيتغطى بـ
                 // Math.max(0,...) من غير ما يبان إن في مشكلة).
                 db.from('cases').select('status').is('deleted_at', null).abortSignal(guard.controller.signal),
+                // ── جلسات متأخرة: نفس تعريف "جلسة فائتة" المستخدم في
+                // useDashboardFeed.ts بالضبط (قضية مفيهاش جلسة مستقبلية +
+                // آخر جلسة فائتة ليها) — عشان الرقم هنا يتطابق مع لوحة
+                // التحكم الرئيسية، مش تعريف تاني مستقل. بنجيب case_id بس
+                // (مش كل بيانات الجلسة) لأننا محتاجين العدد بس هنا.
+                db.from('case_sessions').select('case_id').gte('session_date', todayISO).abortSignal(guard.controller.signal),
+                db.from('case_sessions').select('case_id').lt('session_date', todayISO).abortSignal(guard.controller.signal),
             ]);
             if (feesRes.error) throw feesRes.error;
             if (paymentsRes.error) throw paymentsRes.error;
             if (sessionsRes.error) throw sessionsRes.error;
             if (remindersRes.error) throw remindersRes.error;
             if (caseStatusRes.error) throw caseStatusRes.error;
+            if (futureSessCasesRes.error) throw futureSessCasesRes.error;
+            if (pastSessCasesRes.error) throw pastSessCasesRes.error;
 
             const byKey = new Map(months.map((m) => [m.key, m]));
             for (const f of (feesRes.data || []) as { total_fees: number | null; created_at: string | null }[]) {
@@ -170,9 +180,17 @@ export function useAdminStats(profile: ProfileRow | null, casesTotal: number = 0
 
             const sessionsCount  = sessionsRes.count  ?? 0;
             const remindersCount = remindersRes.count ?? 0;
+            const futureCaseIds = new Set((futureSessCasesRes.data || []).map((s: { case_id: string | null }) => s.case_id));
+            const overdueCaseIds = new Set(
+                (pastSessCasesRes.data || [])
+                    .map((s: { case_id: string | null }) => s.case_id)
+                    .filter((caseId: string | null) => !futureCaseIds.has(caseId))
+            );
+            const overdueSessionsCount = overdueCaseIds.size;
             setSessionsThisWeek(sessionsCount);
             setOverdueReminders(remindersCount);
-            saveCache(ADMIN_STATS_OPS_CACHE_KEY, profile.tenant_id, { sessionsThisWeek: sessionsCount, overdueReminders: remindersCount });
+            setOverdueSessions(overdueSessionsCount);
+            saveCache(ADMIN_STATS_OPS_CACHE_KEY, profile.tenant_id, { sessionsThisWeek: sessionsCount, overdueReminders: remindersCount, overdueSessions: overdueSessionsCount });
 
             // ── تقسيم القضايا حسب الحالة ──
             // الإجمالي بييجي من casesTotal (نفس رقم بطاقة "عدد القضايا" في
@@ -196,8 +214,8 @@ export function useAdminStats(profile: ProfileRow | null, casesTotal: number = 0
             if (cached) { setGrandTotal(cached.data.total); setGrandPaid(cached.data.paid); setLastUpdatedAt(cached.savedAt); setIsStale(true); }
             const cachedTrend = loadCache<MonthlyTrendPoint[]>(ADMIN_STATS_TREND_CACHE_KEY, profile.tenant_id);
             if (cachedTrend) setMonthlyTrend(cachedTrend.data);
-            const cachedOps = loadCache<{ sessionsThisWeek: number; overdueReminders: number }>(ADMIN_STATS_OPS_CACHE_KEY, profile.tenant_id);
-            if (cachedOps) { setSessionsThisWeek(cachedOps.data.sessionsThisWeek); setOverdueReminders(cachedOps.data.overdueReminders); }
+            const cachedOps = loadCache<{ sessionsThisWeek: number; overdueReminders: number; overdueSessions: number }>(ADMIN_STATS_OPS_CACHE_KEY, profile.tenant_id);
+            if (cachedOps) { setSessionsThisWeek(cachedOps.data.sessionsThisWeek); setOverdueReminders(cachedOps.data.overdueReminders); setOverdueSessions(cachedOps.data.overdueSessions ?? 0); }
             const cachedStatus = loadCache<CaseStatusBreakdown>(ADMIN_STATS_CASE_STATUS_CACHE_KEY, profile.tenant_id);
             if (cachedStatus) setCaseStatusBreakdown(cachedStatus.data);
         } finally {
@@ -208,6 +226,6 @@ export function useAdminStats(profile: ProfileRow | null, casesTotal: number = 0
 
     return {
         grandTotal, grandPaid, grandRemaining, collectedRate, loadingFeesStats, monthlyTrend,
-        sessionsThisWeek, overdueReminders, caseStatusBreakdown, lastUpdatedAt, isStale, fetchStatsSummary,
+        sessionsThisWeek, overdueReminders, overdueSessions, caseStatusBreakdown, lastUpdatedAt, isStale, fetchStatsSummary,
     };
 }
