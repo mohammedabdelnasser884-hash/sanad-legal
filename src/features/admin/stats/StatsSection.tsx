@@ -3,17 +3,9 @@ import { formatArNumber, formatArTime } from '../../../shared/ui/arabicLocale';
 import { COUNTRY_CONFIGS } from '../../../constants';
 import type { MonthlyTrendPoint, CaseStatusBreakdown } from './hooks/useAdminStats';
 
-interface UserStats {
-  total: number;
-  active: number;
-  admins: number;
-  portalEnabled: number;
-}
-
 interface StatsSectionProps {
   casesTotal: number;
   clientsTotal: number;
-  userStats: UserStats;
   grandTotal: number;
   grandPaid: number;
   grandRemaining: number;
@@ -30,6 +22,15 @@ interface StatsSectionProps {
 
 const fmt = (n: number) => formatArNumber(n, { maximumFractionDigits: 0 });
 
+// ─────────────────────────────────────────────────────────
+//  Design tokens موحّدة للقسم كله — 3 أحجام خط بس (بدل الأرقام
+//  العشوائية اللي كانت متكررة بقيم قريبة من بعض: 10.5/9.5/9/8.5px).
+//  أي كارت جديد يتضاف هنا يستخدم من الـ3 دول، مش يخترع حجم جديد.
+// ─────────────────────────────────────────────────────────
+const LABEL_SIZE = '10px';     // عناوين الكروت الصغيرة
+const VALUE_PRIMARY = '28px';  // الأرقام الرئيسية (هيرو + إجمالي الأتعاب)
+const VALUE_SECONDARY = '18px';// أرقام الكروت التشغيلية
+
 // لون شريط نسبة التحصيل بيتغيّر حسب القيمة — أحمر تحذيري للنسب الضعيفة،
 // أصفر للمتوسطة، أخضر بس لو فعلاً كويسة. قبل كده كان أخضر ثابت دايمًا
 // حتى لو النسبة 15%، وده بيفقد الشريط قيمته كمؤشر بصري.
@@ -37,6 +38,28 @@ function rateColors(rate: number) {
   if (rate < 40) return { from: '#f87171', to: '#ef4444', glow: 'rgba(248,113,113,0.6)', text: '#f87171' };
   if (rate < 70) return { from: '#fbbf24', to: '#f59e0b', glow: 'rgba(251,191,36,0.6)',  text: '#fbbf24' };
   return { from: '#4ade80', to: '#22c55e', glow: 'rgba(74,222,128,0.6)', text: '#4ade80' };
+}
+
+// خط علوي متوهج — نفس النمط في كل الكروت بدون استثناء (كان قسم "تقسيم
+// القضايا" الوحيد اللي مستثنى، بقى موحّد دلوقتي).
+function GlowTopLine({ color, glow, inset = '14px' }: { color: string; glow: string; inset?: string }) {
+  return React.createElement('div', {
+    style: {
+      position: 'absolute', top: 0, right: inset, left: inset,
+      height: '2px', borderRadius: '0 0 4px 4px',
+      background: color, boxShadow: `0 0 10px ${glow}`,
+    },
+  });
+}
+
+// عنوان مجموعة موحّد — يُستخدم فوق كل مجموعة كروت (نظرة عامة / الأتعاب /
+// تشغيل) بنفس الحجم واللون بالضبط، بدل ما كل قسم يكتب نفس الفكرة بحجم
+// وألوان مختلفة شوية عن التاني.
+function GroupHeader({ title }: { title: string }) {
+  return React.createElement('p', {
+    className: 'font-black tracking-widest px-1',
+    style: { fontSize: LABEL_SIZE, color: '#64748b' },
+  }, title);
 }
 
 // بطاقة "هيرو" كبيرة (عدد القضايا / عدد الموكلين) — رقم ضخم في المنتصف
@@ -62,31 +85,30 @@ function HeroCountCard({
         width: '64px', height: '64px', color: accent, opacity: 0.12,
       },
     }, icon),
-    // خط علوي متوهج
-    React.createElement('div', {
-      style: {
-        position: 'absolute', top: 0, right: '14px', left: '14px',
-        height: '2px', borderRadius: '0 0 4px 4px',
-        background: accent, boxShadow: `0 0 10px ${glow}`,
-      },
-    }),
+    React.createElement(GlowTopLine, { color: accent, glow }),
     React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', color: accent } },
       React.createElement('div', { className: 'w-4 h-4' }, icon),
-      React.createElement('p', { className: 'text-[10.5px] font-black tracking-wide' }, label)
+      React.createElement('p', { className: 'font-black tracking-wide', style: { fontSize: LABEL_SIZE } }, label)
     ),
     React.createElement('p', {
       className: 'font-black',
-      style: { color: '#f1f5f9', fontSize: '30px', lineHeight: 1, marginTop: '14px', direction: 'ltr', textAlign: 'right' },
+      style: { color: '#f1f5f9', fontSize: VALUE_PRIMARY, lineHeight: 1, marginTop: '14px', direction: 'ltr', textAlign: 'right' },
     }, fmt(value))
   );
 }
 
-// أيقونتان بسيطتان محليتان (ميزان للقضايا، مجموعة أشخاص للموكلين) —
-// بديل مصغّر يكفي هنا بدل استيراد ملف الأيقونات الرئيسي بالكامل.
+// ─────────────────────────────────────────────────────────
+//  أيقونات SVG محلية موحّدة — نفس النمط (viewBox 24x24، stroke،
+//  strokeWidth 1.5) لكل أيقونة في القسم، مش SVG هنا وإيموجي هناك.
+// ─────────────────────────────────────────────────────────
 const CasesGlyph = () => React.createElement('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '1.5' },
   React.createElement('path', { strokeLinecap: 'round', strokeLinejoin: 'round', d: 'M12 3v18M5 7l-2.5 5A3 3 0 0 0 5 15a3 3 0 0 0 2.5-3L5 7Zm14 0l-2.5 5A3 3 0 0 0 19 15a3 3 0 0 0 2.5-3L19 7ZM5 7h14M9 21h6' }));
 const ClientsGlyph = () => React.createElement('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '1.5' },
   React.createElement('path', { strokeLinecap: 'round', strokeLinejoin: 'round', d: 'M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z' }));
+const CalendarGlyph = () => React.createElement('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '1.5' },
+  React.createElement('path', { strokeLinecap: 'round', strokeLinejoin: 'round', d: 'M6.75 3v2.25M17.25 3v2.25M3.75 7.5h16.5M4.5 6h15a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75h-15a.75.75 0 0 1-.75-.75V6.75A.75.75 0 0 1 4.5 6ZM7.5 12h3v3h-3v-3Z' }));
+const BellGlyph = () => React.createElement('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '1.5' },
+  React.createElement('path', { strokeLinecap: 'round', strokeLinejoin: 'round', d: 'M14.857 17.082a23.85 23.85 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022 23.847 23.847 0 0 0 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0' }));
 
 // رسم بياني بسيط (أعمدة مزدوجة) لمقارنة "المستحق" بـ"المحصّل" شهريًا آخر
 // 6 شهور — SVG يدوي بنفس نمط باقي الملف، من غير أي مكتبة رسم بياني خارجية.
@@ -122,6 +144,8 @@ function TrendChart({ data }: { data: MonthlyTrendPoint[] }) {
   });
 
   return React.createElement('div', { style: { marginTop: '14px' } },
+    // ── عنوان صريح لمدى الرسم — عشان يتفصل بصريًا عن رقم "كل الوقت" فوقه ──
+    React.createElement('p', { className: 'font-bold text-slate-500 mb-2', style: { fontSize: '9px' } }, 'اتجاه التحصيل — آخر 6 شهور'),
     // ── Legend ──
     React.createElement('div', { className: 'flex items-center gap-3 mb-2' },
       React.createElement('div', { className: 'flex items-center gap-1' },
@@ -173,164 +197,147 @@ function CaseStatusBar({ data, casesTotal }: { data: CaseStatusBreakdown; casesT
   );
 }
 
+// كارت تشغيلي صغير (جلسات الأسبوع / تذكيرات متأخرة) — نفس تركيب
+// HeroCountCard (خط متوهج + أيقونة SVG + label + رقم) بحجم أصغر، بدل
+// النمط المختلف اللي كان يستخدم إيموجي جوه فقرة نص عادية.
+function OpsStatCard({
+  label, value, icon, color, bg, border,
+}: { label: string; value: number; icon: React.ReactNode; color: string; bg: string; border: string }) {
+  return React.createElement('div', {
+    style: { background: bg, border: `1px solid ${border}`, borderRadius: '13px', padding: '12px 10px', position: 'relative', overflow: 'hidden' },
+  },
+    React.createElement(GlowTopLine, { color, glow: `${color}99`, inset: '12px' }),
+    React.createElement('div', { className: 'flex items-center gap-1.5', style: { color } },
+      React.createElement('div', { className: 'w-3.5 h-3.5' }, icon),
+      React.createElement('p', { className: 'font-bold text-slate-500', style: { fontSize: LABEL_SIZE } }, label)
+    ),
+    React.createElement('p', { className: 'font-black mt-1', style: { color, fontSize: VALUE_SECONDARY } }, fmt(value))
+  );
+}
+
 function StatsSection({
-  casesTotal, clientsTotal, userStats, grandTotal, grandPaid, grandRemaining, collectedRate, loadingFeesStats, country, monthlyTrend,
+  casesTotal, clientsTotal, grandTotal, grandPaid, grandRemaining, collectedRate, loadingFeesStats, country, monthlyTrend,
   sessionsThisWeek, overdueReminders, caseStatusBreakdown, lastUpdatedAt, isStale,
 }: StatsSectionProps) {
   const currency = COUNTRY_CONFIGS[country || 'EG']?.currency || 'جنيه مصري';
   const rc = rateColors(collectedRate);
 
-  return React.createElement('div', { className: 'space-y-4' },
+  return React.createElement('div', { className: 'space-y-5' },
 
-    // ── القضايا + الموكلين — بطاقتا هيرو جنب بعض ──
-    React.createElement('div', { className: 'grid grid-cols-2 gap-2.5' },
-      React.createElement(HeroCountCard, {
-        label: 'عدد القضايا', value: casesTotal,
-        icon: React.createElement(CasesGlyph), accent: '#60a5fa', glow: 'rgba(96,165,250,0.6)',
-      }),
-      React.createElement(HeroCountCard, {
-        label: 'عدد الموكلين', value: clientsTotal,
-        icon: React.createElement(ClientsGlyph), accent: '#a78bfa', glow: 'rgba(167,139,250,0.6)',
-      })
-    ),
+    // ══════════════════════════════════════════
+    //  مجموعة 1: نظرة عامة — القضايا والموكلين
+    // ══════════════════════════════════════════
+    React.createElement('div', { className: 'space-y-2.5' },
+      React.createElement(GroupHeader, { title: 'نظرة عامة' }),
 
-    // ── تقسيم القضايا حسب الحالة ──
-    React.createElement('div', {
-      style: {
-        background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
-        borderRadius: '16px', padding: '14px',
-      },
-    },
-      React.createElement('p', { className: 'text-[9.5px] font-black text-slate-500 tracking-wide' }, 'تقسيم القضايا حسب الحالة'),
-      React.createElement(CaseStatusBar, { data: caseStatusBreakdown, casesTotal })
-    ),
+      React.createElement('div', { className: 'grid grid-cols-2 gap-2.5' },
+        React.createElement(HeroCountCard, {
+          label: 'عدد القضايا', value: casesTotal,
+          icon: React.createElement(CasesGlyph), accent: '#60a5fa', glow: 'rgba(96,165,250,0.6)',
+        }),
+        React.createElement(HeroCountCard, {
+          label: 'عدد الموكلين', value: clientsTotal,
+          icon: React.createElement(ClientsGlyph), accent: '#a78bfa', glow: 'rgba(167,139,250,0.6)',
+        })
+      ),
 
-    // ── بطاقة الأتعاب — عريضة، برسم شريط تحصيل ──
-    React.createElement('div', {
-      'data-testid': 'admin-stats-fees-card',
-      style: {
-        background: 'linear-gradient(160deg, rgba(201,168,76,0.10), rgba(201,168,76,0.02))',
-        border: '1px solid rgba(201,168,76,0.22)',
-        borderRadius: '18px', padding: '16px', position: 'relative', overflow: 'hidden',
-      },
-    },
       React.createElement('div', {
         style: {
-          position: 'absolute', top: 0, right: '14px', left: '14px',
-          height: '2px', borderRadius: '0 0 4px 4px',
-          background: '#C9A84C', boxShadow: '0 0 10px rgba(201,168,76,0.6)',
+          background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
+          borderRadius: '16px', padding: '14px', position: 'relative', overflow: 'hidden',
         },
-      }),
-      React.createElement('div', { className: 'flex items-center justify-between' },
-        React.createElement('p', { className: 'text-[10.5px] font-black tracking-wide', style: { color: '#C9A84C' } }, 'إجمالي الأتعاب'),
-        loadingFeesStats
-          ? React.createElement('span', { className: 'text-[9.5px] text-slate-500 font-medium' }, 'بيتحدّث...')
-          : lastUpdatedAt && React.createElement('span', { className: 'text-[9px] font-medium', style: { color: isStale ? '#fb7185' : '#64748b' } },
-              isStale ? `⚠️ بيانات محفوظة — ${formatArTime(lastUpdatedAt)}` : `آخر تحديث ${formatArTime(lastUpdatedAt)}`)
-      ),
-      React.createElement('p', {
-        className: 'font-black', style: { color: '#f1f5f9', fontSize: '28px', lineHeight: 1, marginTop: '8px', direction: 'ltr', textAlign: 'right' },
-      }, `${fmt(grandTotal)} ${currency}`),
-
-      // شريط التحصيل
-      React.createElement('div', { style: { marginTop: '14px' } },
-        React.createElement('div', {
-          style: { height: '8px', borderRadius: '999px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden', position: 'relative' },
-        },
-          React.createElement('div', {
-            style: {
-              height: '100%', width: `${Math.min(100, Math.max(0, collectedRate))}%`,
-              background: `linear-gradient(90deg,${rc.from},${rc.to})`,
-              boxShadow: `0 0 8px ${rc.glow}`,
-              borderRadius: '999px', transition: 'width 0.4s ease, background 0.4s ease',
-            },
-          })
-        ),
-        React.createElement('div', { className: 'flex items-center justify-between mt-1.5' },
-          React.createElement('span', { className: 'text-[9.5px] font-bold', style: { color: rc.text } }, `نسبة التحصيل ${collectedRate}%`)
-        )
-      ),
-
-      // محصّل / متبقي
-      React.createElement('div', { className: 'grid grid-cols-2 gap-2 mt-3' },
-        React.createElement('div', {
-          style: { background: 'rgba(74,222,128,0.06)', border: '1px solid rgba(74,222,128,0.15)', borderRadius: '13px', padding: '10px 6px 9px', textAlign: 'center' },
-        },
-          React.createElement('p', { className: 'text-[9px] font-bold text-slate-500' }, 'محصّل'),
-          React.createElement('p', { className: 'font-black mt-0.5', style: { color: '#4ade80', fontSize: '14px', direction: 'ltr' } }, fmt(grandPaid))
-        ),
-        React.createElement('div', {
-          style: { background: 'rgba(251,113,133,0.06)', border: '1px solid rgba(251,113,133,0.15)', borderRadius: '13px', padding: '10px 6px 9px', textAlign: 'center' },
-        },
-          React.createElement('p', { className: 'text-[9px] font-bold text-slate-500' }, 'متبقي'),
-          React.createElement('p', { className: 'font-black mt-0.5', style: { color: '#fb7185', fontSize: '14px', direction: 'ltr' } }, fmt(grandRemaining))
-        )
-      ),
-
-      // اتجاه التحصيل آخر 6 شهور
-      React.createElement(TrendChart, { data: monthlyTrend })
-    ),
-
-    // ── إحصائيات تشغيلية: جلسات الأسبوع الجاي + تذكيرات متأخرة ──
-    React.createElement('div', { className: 'space-y-2' },
-      React.createElement('p', { className: 'text-[9px] font-black text-slate-600 tracking-widest px-1' }, 'إحصائيات تشغيلية'),
-      React.createElement('div', { className: 'grid grid-cols-2 gap-2.5' },
-        React.createElement('div', {
-          style: {
-            background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.15)',
-            borderRadius: '13px', padding: '12px 10px', position: 'relative', overflow: 'hidden',
-          },
-        },
-          React.createElement('div', {
-            style: { position: 'absolute', top: 0, right: '12px', left: '12px', height: '1.5px', borderRadius: '0 0 3px 3px', background: '#60a5fa', boxShadow: '0 0 6px rgba(96,165,250,0.6)' },
-          }),
-          React.createElement('p', { className: 'text-[9px] font-bold text-slate-500' }, '📅 جلسات الأسبوع الجاي'),
-          React.createElement('p', { className: 'font-black mt-1', style: { color: '#60a5fa', fontSize: '20px' } }, fmt(sessionsThisWeek))
-        ),
-        React.createElement('div', {
-          style: {
-            background: overdueReminders > 0 ? 'rgba(251,113,133,0.08)' : 'rgba(74,222,128,0.06)',
-            border: `1px solid ${overdueReminders > 0 ? 'rgba(251,113,133,0.2)' : 'rgba(74,222,128,0.15)'}`,
-            borderRadius: '13px', padding: '12px 10px', position: 'relative', overflow: 'hidden',
-          },
-        },
-          React.createElement('div', {
-            style: { position: 'absolute', top: 0, right: '12px', left: '12px', height: '1.5px', borderRadius: '0 0 3px 3px', background: overdueReminders > 0 ? '#fb7185' : '#4ade80', boxShadow: `0 0 6px ${overdueReminders > 0 ? 'rgba(251,113,133,0.6)' : 'rgba(74,222,128,0.6)'}` },
-          }),
-          React.createElement('p', { className: 'text-[9px] font-bold text-slate-500' }, overdueReminders > 0 ? '⏰ تذكيرات متأخرة' : '✅ لا توجد تذكيرات متأخرة'),
-          React.createElement('p', { className: 'font-black mt-1', style: { color: overdueReminders > 0 ? '#fb7185' : '#4ade80', fontSize: '20px' } }, fmt(overdueReminders))
-        )
+      },
+        React.createElement(GlowTopLine, { color: '#94a3b8', glow: 'rgba(148,163,184,0.5)' }),
+        React.createElement('p', { className: 'font-black text-slate-500 tracking-wide', style: { fontSize: LABEL_SIZE } }, 'تقسيم القضايا حسب الحالة'),
+        React.createElement(CaseStatusBar, { data: caseStatusBreakdown, casesTotal })
       )
     ),
 
-    // ── إحصائيات المستخدمين (منقولة من الشاشة الرئيسية) ──
-    React.createElement('div', { className: 'space-y-2' },
-      React.createElement('p', { className: 'text-[9px] font-black text-slate-600 tracking-widest px-1' }, 'إحصائيات المستخدمين'),
-      React.createElement('div', { className: 'grid grid-cols-4 gap-2' },
-        ([
-          { label: 'الإجمالي', value: userStats.total,         icon: '👥', bg: 'rgba(255,255,255,0.03)', border: 'rgba(255,255,255,0.06)', numColor: '#e2e8f0', glowColor: 'rgba(255,255,255,0.2)' },
-          { label: 'نشط',      value: userStats.active,        icon: '⚡', bg: 'rgba(74,222,128,0.06)',  border: 'rgba(74,222,128,0.15)',  numColor: '#4ade80', glowColor: 'rgba(74,222,128,0.6)' },
-          { label: 'مديرون',   value: userStats.admins,        icon: '🛡', bg: 'rgba(96,165,250,0.06)',  border: 'rgba(96,165,250,0.15)',  numColor: '#60a5fa', glowColor: 'rgba(96,165,250,0.6)' },
-          { label: 'بوابات',   value: userStats.portalEnabled, icon: '🔑', bg: 'rgba(245,158,11,0.06)',  border: 'rgba(245,158,11,0.15)',  numColor: '#fbbf24', glowColor: 'rgba(245,158,11,0.6)' },
-        ]).map((s) => React.createElement('div', {
-          key: s.label,
-          style: {
-            background: s.bg, border: `1px solid ${s.border}`,
-            borderRadius: '13px', padding: '10px 6px 9px',
-            textAlign: 'center', position: 'relative', overflow: 'hidden',
-          },
+    // ══════════════════════════════════════════
+    //  مجموعة 2: الأتعاب
+    // ══════════════════════════════════════════
+    React.createElement('div', { className: 'space-y-2.5' },
+      React.createElement(GroupHeader, { title: 'الأتعاب' }),
+
+      React.createElement('div', {
+        'data-testid': 'admin-stats-fees-card',
+        style: {
+          background: 'linear-gradient(160deg, rgba(201,168,76,0.10), rgba(201,168,76,0.02))',
+          border: '1px solid rgba(201,168,76,0.22)',
+          borderRadius: '18px', padding: '16px', position: 'relative', overflow: 'hidden',
         },
+      },
+        React.createElement(GlowTopLine, { color: '#C9A84C', glow: 'rgba(201,168,76,0.6)' }),
+        React.createElement('div', { className: 'flex items-center justify-between' },
+          React.createElement('p', { className: 'font-black tracking-wide', style: { fontSize: LABEL_SIZE, color: '#C9A84C' } }, 'إجمالي الأتعاب — كل الوقت'),
+          loadingFeesStats
+            ? React.createElement('span', { className: 'text-[9.5px] text-slate-500 font-medium' }, 'بيتحدّث...')
+            : lastUpdatedAt && React.createElement('span', { className: 'text-[9px] font-medium', style: { color: isStale ? '#fb7185' : '#64748b' } },
+                isStale ? `⚠️ بيانات محفوظة — ${formatArTime(lastUpdatedAt)}` : `آخر تحديث ${formatArTime(lastUpdatedAt)}`)
+        ),
+        React.createElement('p', {
+          className: 'font-black', style: { color: '#f1f5f9', fontSize: VALUE_PRIMARY, lineHeight: 1, marginTop: '8px', direction: 'ltr', textAlign: 'right' },
+        }, `${fmt(grandTotal)} ${currency}`),
+
+        // شريط التحصيل
+        React.createElement('div', { style: { marginTop: '14px' } },
           React.createElement('div', {
-            style: {
-              position: 'absolute', top: 0, left: '20%', right: '20%',
-              height: '1.5px', borderRadius: '0 0 3px 3px',
-              background: s.numColor, boxShadow: `0 0 6px ${s.glowColor}`,
-            },
-          }),
-          React.createElement('p', { className: 'text-sm mb-0.5' }, s.icon),
-          React.createElement('p', { className: 'font-black', style: { color: s.numColor, fontSize: '15px' } }, String(s.value)),
-          React.createElement('p', { className: 'text-[8.5px] font-bold text-slate-500 mt-0.5' }, s.label)
-        ))
+            style: { height: '8px', borderRadius: '999px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden', position: 'relative' },
+          },
+            React.createElement('div', {
+              style: {
+                height: '100%', width: `${Math.min(100, Math.max(0, collectedRate))}%`,
+                background: `linear-gradient(90deg,${rc.from},${rc.to})`,
+                boxShadow: `0 0 8px ${rc.glow}`,
+                borderRadius: '999px', transition: 'width 0.4s ease, background 0.4s ease',
+              },
+            })
+          ),
+          React.createElement('div', { className: 'flex items-center justify-between mt-1.5' },
+            React.createElement('span', { className: 'font-bold', style: { fontSize: '9.5px', color: rc.text } }, `نسبة التحصيل ${collectedRate}%`)
+          )
+        ),
+
+        // محصّل / متبقي
+        React.createElement('div', { className: 'grid grid-cols-2 gap-2 mt-3' },
+          React.createElement('div', {
+            style: { background: 'rgba(74,222,128,0.06)', border: '1px solid rgba(74,222,128,0.15)', borderRadius: '13px', padding: '10px 6px 9px', textAlign: 'center' },
+          },
+            React.createElement('p', { className: 'font-bold text-slate-500', style: { fontSize: LABEL_SIZE } }, 'محصّل'),
+            React.createElement('p', { className: 'font-black mt-0.5', style: { color: '#4ade80', fontSize: '14px', direction: 'ltr' } }, fmt(grandPaid))
+          ),
+          React.createElement('div', {
+            style: { background: 'rgba(251,113,133,0.06)', border: '1px solid rgba(251,113,133,0.15)', borderRadius: '13px', padding: '10px 6px 9px', textAlign: 'center' },
+          },
+            React.createElement('p', { className: 'font-bold text-slate-500', style: { fontSize: LABEL_SIZE } }, 'متبقي'),
+            React.createElement('p', { className: 'font-black mt-0.5', style: { color: '#fb7185', fontSize: '14px', direction: 'ltr' } }, fmt(grandRemaining))
+          )
+        ),
+
+        // اتجاه التحصيل آخر 6 شهور
+        React.createElement(TrendChart, { data: monthlyTrend })
+      )
+    ),
+
+    // ══════════════════════════════════════════
+    //  مجموعة 3: تشغيل — جلسات وتذكيرات
+    // ══════════════════════════════════════════
+    React.createElement('div', { className: 'space-y-2.5' },
+      React.createElement(GroupHeader, { title: 'تشغيل' }),
+      React.createElement('div', { className: 'grid grid-cols-2 gap-2.5' },
+        React.createElement(OpsStatCard, {
+          label: 'جلسات الأسبوع الجاي', value: sessionsThisWeek,
+          icon: React.createElement(CalendarGlyph), color: '#60a5fa',
+          bg: 'rgba(96,165,250,0.06)', border: 'rgba(96,165,250,0.15)',
+        }),
+        React.createElement(OpsStatCard, {
+          label: overdueReminders > 0 ? 'تذكيرات متأخرة' : 'لا توجد تذكيرات متأخرة',
+          value: overdueReminders,
+          icon: React.createElement(BellGlyph),
+          color: overdueReminders > 0 ? '#fb7185' : '#4ade80',
+          bg: overdueReminders > 0 ? 'rgba(251,113,133,0.08)' : 'rgba(74,222,128,0.06)',
+          border: overdueReminders > 0 ? 'rgba(251,113,133,0.2)' : 'rgba(74,222,128,0.15)',
+        })
       )
     )
   );
