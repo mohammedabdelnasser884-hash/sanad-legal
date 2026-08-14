@@ -15,6 +15,7 @@ interface StatsSectionProps {
   monthlyTrend: MonthlyTrendPoint[];
   sessionsThisWeek: number;
   overdueReminders: number;
+  overdueSessions: number;
   caseStatusBreakdown: CaseStatusBreakdown;
   lastUpdatedAt: number | null;
   isStale: boolean;
@@ -217,7 +218,7 @@ function OpsStatCard({
 
 function StatsSection({
   casesTotal, clientsTotal, grandTotal, grandPaid, grandRemaining, collectedRate, loadingFeesStats, country, monthlyTrend,
-  sessionsThisWeek, overdueReminders, caseStatusBreakdown, lastUpdatedAt, isStale,
+  sessionsThisWeek, overdueReminders, overdueSessions, caseStatusBreakdown, lastUpdatedAt, isStale,
 }: StatsSectionProps) {
   const currency = COUNTRY_CONFIGS[country || 'EG']?.currency || 'جنيه مصري';
   const rc = rateColors(collectedRate);
@@ -324,11 +325,21 @@ function StatsSection({
     // ══════════════════════════════════════════
     React.createElement('div', { className: 'space-y-2.5' },
       React.createElement(GroupHeader, { title: 'تشغيل' }),
+      // جلسات الأسبوع الجاي — بمفردها فوق (نظرة عامة على الأسبوع القادم)
+      React.createElement(OpsStatCard, {
+        label: 'جلسات الأسبوع الجاي', value: sessionsThisWeek,
+        icon: React.createElement(CalendarGlyph), color: '#60a5fa',
+        bg: 'rgba(96,165,250,0.06)', border: 'rgba(96,165,250,0.15)',
+      }),
+      // جلسات متأخرة + تذكيرات متأخرة — جنب بعض تحت، الاتنين "محتاجين تدخل"
       React.createElement('div', { className: 'grid grid-cols-2 gap-2.5' },
         React.createElement(OpsStatCard, {
-          label: 'جلسات الأسبوع الجاي', value: sessionsThisWeek,
-          icon: React.createElement(CalendarGlyph), color: '#60a5fa',
-          bg: 'rgba(96,165,250,0.06)', border: 'rgba(96,165,250,0.15)',
+          label: overdueSessions > 0 ? 'جلسات متأخرة' : 'لا توجد جلسات متأخرة',
+          value: overdueSessions,
+          icon: React.createElement(CalendarGlyph),
+          color: overdueSessions > 0 ? '#fb7185' : '#4ade80',
+          bg: overdueSessions > 0 ? 'rgba(251,113,133,0.08)' : 'rgba(74,222,128,0.06)',
+          border: overdueSessions > 0 ? 'rgba(251,113,133,0.2)' : 'rgba(74,222,128,0.15)',
         }),
         React.createElement(OpsStatCard, {
           label: overdueReminders > 0 ? 'تذكيرات متأخرة' : 'لا توجد تذكيرات متأخرة',
